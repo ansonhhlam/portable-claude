@@ -3,6 +3,11 @@ name: privacy
 on:
   push:
   pull_request:
+  # Scheduled and manual runs make the gitleaks action scan the whole history,
+  # not just the commits in a push.
+  schedule:
+    - cron: '17 3 * * 1'
+  workflow_dispatch:
 
 permissions:
   contents: read

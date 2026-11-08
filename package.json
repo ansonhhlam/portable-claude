@@ -50,9 +50,9 @@
     "test:coverage": "vitest run --coverage",
     "test:e2e": "playwright test",
     "licenses": "node scripts/check-licenses.mjs",
-    "pack:check": "node scripts/check-pack.mjs",
-    "docs:cli": "node scripts/gen-cli-docs.mjs",
-    "docs:check": "node scripts/gen-cli-docs.mjs --check",
+    "pack:check": "npm run build && node scripts/check-pack.mjs",
+    "docs:cli": "npm run build:server && node scripts/gen-cli-docs.mjs",
+    "docs:check": "npm run build:server && node scripts/gen-cli-docs.mjs --check",
     "icons": "node scripts/gen-icons.mjs",
     "privacy-check": "node scripts/privacy-check.mjs",
     "privacy-check:history": "node scripts/privacy-check.mjs --history"
