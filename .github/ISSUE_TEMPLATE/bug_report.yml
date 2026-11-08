@@ -1,0 +1,89 @@
+name: Bug report
+description: Something in longcord does not work as expected.
+labels: [bug, triage]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for reporting a bug. Please search existing issues first.
+
+        **Security problems must not be reported here.** Use a private report instead:
+        https://github.com/ansonhhlam/portable-claude/security/advisories/new
+
+        This issue is public. Do not paste API keys, tokens, private code, or your real tailnet name.
+
+  - type: textarea
+    id: description
+    attributes:
+      label: What happened?
+      description: A clear description of the bug.
+    validations:
+      required: true
+
+  - type: textarea
+    id: steps
+    attributes:
+      label: Steps to reproduce
+      placeholder: |
+        1. Run `longcord start`
+        2. Open the app on the phone and start a session in ...
+        3. ...
+    validations:
+      required: true
+
+  - type: textarea
+    id: expected
+    attributes:
+      label: Expected behavior
+    validations:
+      required: true
+
+  - type: dropdown
+    id: os
+    attributes:
+      label: Computer operating system
+      description: The machine running the longcord server.
+      options:
+        - Windows
+        - macOS
+        - Linux
+        - Other (describe below)
+    validations:
+      required: true
+
+  - type: input
+    id: client
+    attributes:
+      label: Phone and browser
+      description: Device, OS version and browser, and whether the app is installed to the home screen.
+      placeholder: e.g. iPhone, iOS 26, Safari, installed as PWA
+    validations:
+      required: false
+
+  - type: input
+    id: version
+    attributes:
+      label: longcord version
+      description: Output of `longcord --version`.
+      placeholder: e.g. 1.0.0
+    validations:
+      required: true
+
+  - type: textarea
+    id: doctor
+    attributes:
+      label: longcord doctor output
+      description: |
+        Run `longcord doctor` and paste the output.
+        It redacts usernames, absolute paths and hostnames automatically, but **review it before posting** and remove anything you do not want to share.
+      render: text
+    validations:
+      required: true
+
+  - type: textarea
+    id: extra
+    attributes:
+      label: Additional context
+      description: Logs, screenshots or anything else that helps. Check them for personal data first.
+    validations:
+      required: false

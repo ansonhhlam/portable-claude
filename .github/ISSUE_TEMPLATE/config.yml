@@ -1,0 +1,11 @@
+blank_issues_enabled: false
+contact_links:
+  - name: Report a security vulnerability
+    url: https://github.com/ansonhhlam/portable-claude/security/advisories/new
+    about: Please report security problems privately, not in a public issue.
+  - name: Ask a question
+    url: https://github.com/ansonhhlam/portable-claude/discussions
+    about: Setup help, questions and ideas. See SUPPORT.md for what to include.
+  - name: Support guide
+    url: https://github.com/ansonhhlam/portable-claude/blob/main/SUPPORT.md
+    about: Where to get help and how to share diagnostics safely.
