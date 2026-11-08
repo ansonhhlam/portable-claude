@@ -1,0 +1,86 @@
+# ---------------------------------------------------------------
+# Deny by default: secrets
+# ---------------------------------------------------------------
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+*.p12
+*.pfx
+*.crt
+*.cer
+id_rsa*
+id_ed25519*
+secrets.json
+vapid*.json
+*.har
+*.cookie
+cookies.txt
+
+# Runtime data and state produced by running the app
+/config.json
+/data/
+/state/
+*.jsonl
+!test/fixtures/**/*.jsonl
+*.log
+*.log.*
+logs/
+crash-*.json
+*.dmp
+*.heapsnapshot
+
+# ---------------------------------------------------------------
+# Deny by default: working notes and assistant configuration
+# ---------------------------------------------------------------
+.work/
+BUILD_PROMPT.md
+CLAUDE.md
+CLAUDE.local.md
+AGENTS.md
+.claude/
+.cursor/
+.cursorrules
+.windsurf/
+.aider*
+.continue/
+.copilot/
+/reference/
+/notes/
+/scratch/
+PLAN.md
+TODO.md
+NOTES.md
+HANDOVER.md
+*.transcript.*
+
+# ---------------------------------------------------------------
+# Generated noise
+# ---------------------------------------------------------------
+node_modules/
+dist/
+coverage/
+test-results/
+playwright-report/
+blob-report/
+.vite/
+.cache/
+*.tsbuildinfo
+*.tgz
+.eslintcache
+
+# OS files
+.DS_Store
+Thumbs.db
+desktop.ini
+ehthumbs.db
+$RECYCLE.BIN/
+
+# Personal editor settings
+.vscode/
+!.vscode/extensions.json
+.idea/
+*.swp
+*.swo
+*~

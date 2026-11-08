@@ -1,0 +1,13 @@
+#!/bin/sh
+# Pre-commit guard: blocks secrets and personal data from being committed.
+# Enabled automatically by `npm install` (git config core.hooksPath .githooks).
+set -e
+
+node scripts/privacy-check.mjs --quiet
+
+if command -v gitleaks >/dev/null 2>&1; then
+  gitleaks git --pre-commit --staged --redact --no-banner --exit-code 1
+else
+  echo "pre-commit: gitleaks not found; skipping local secret scan (CI still runs it)." >&2
+  echo "pre-commit: install it from https://github.com/gitleaks/gitleaks#installing" >&2
+fi

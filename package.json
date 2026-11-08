@@ -1,0 +1,13 @@
+{
+  "name": "longcord",
+  "version": "0.0.0",
+  "private": true,
+  "description": "Control an AI coding agent running on your own computer from your phone.",
+  "license": "MIT",
+  "type": "module",
+  "scripts": {
+    "prepare": "node scripts/install-hooks.mjs",
+    "privacy-check": "node scripts/privacy-check.mjs",
+    "privacy-check:history": "node scripts/privacy-check.mjs --history"
+  }
+}
