@@ -1,3 +1,4 @@
 # Reviewed allowlist for deliberate fake fixtures.
 # Format: <file-glob> <literal text that may appear in matching files>
 # Every entry must be a value that is fake by construction.
+test/** sk-ant-test-00000000000000000000
