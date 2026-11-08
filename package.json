@@ -1,6 +1,6 @@
 {
   "name": "longcord",
-  "version": "0.0.0",
+  "version": "1.0.0",
   "description": "Control an AI coding agent running on your own computer from your phone, privately over Tailscale. Powered by Claude.",
   "license": "MIT",
   "type": "module",
