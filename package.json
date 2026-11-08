@@ -1,12 +1,59 @@
 {
   "name": "longcord",
   "version": "0.0.0",
-  "private": true,
-  "description": "Control an AI coding agent running on your own computer from your phone.",
+  "description": "Control an AI coding agent running on your own computer from your phone, privately over Tailscale. Powered by Claude.",
   "license": "MIT",
   "type": "module",
+  "bin": {
+    "longcord": "dist/cli/bin.js"
+  },
+  "files": [
+    "dist/",
+    "!dist/**/*.map",
+    "README.md",
+    "LICENSE",
+    "CHANGELOG.md"
+  ],
+  "engines": {
+    "node": ">=20.19"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/ansonhhlam/portable-claude.git"
+  },
+  "homepage": "https://github.com/ansonhhlam/portable-claude#readme",
+  "bugs": {
+    "url": "https://github.com/ansonhhlam/portable-claude/issues"
+  },
+  "keywords": [
+    "agent",
+    "remote",
+    "phone",
+    "pwa",
+    "tailscale",
+    "self-hosted",
+    "claude",
+    "agent-sdk",
+    "coding-agent",
+    "mobile"
+  ],
   "scripts": {
     "prepare": "node scripts/install-hooks.mjs",
+    "build": "npm run build:server && npm run build:web",
+    "build:server": "node scripts/clean.mjs dist && tsc -p tsconfig.build.json",
+    "build:web": "vite build",
+    "dev": "npm run build && node dist/cli/bin.js start --mock --home .work/dev-data",
+    "typecheck": "tsc --noEmit -p tsconfig.json",
+    "lint": "eslint . && prettier --check .",
+    "format": "prettier --write .",
+    "test": "vitest run",
+    "test:coverage": "vitest run --coverage",
+    "test:e2e": "playwright test",
+    "licenses": "node scripts/check-licenses.mjs",
+    "pack:check": "node scripts/check-pack.mjs",
+    "docs:cli": "node scripts/gen-cli-docs.mjs",
+    "docs:check": "node scripts/gen-cli-docs.mjs --check",
+    "icons": "node scripts/gen-icons.mjs",
     "privacy-check": "node scripts/privacy-check.mjs",
     "privacy-check:history": "node scripts/privacy-check.mjs --history"
   },

@@ -78,7 +78,8 @@ export class EventLog {
       fs.truncateSync(this.file, goodEnd);
       this.log.warn('repaired truncated event log', { bytes: report.truncatedBytes });
     }
-    if (report.skippedLines) this.log.warn('skipped invalid event log lines', { lines: report.skippedLines });
+    if (report.skippedLines)
+      this.log.warn('skipped invalid event log lines', { lines: report.skippedLines });
     report.events = this.events.length;
     return report;
   }

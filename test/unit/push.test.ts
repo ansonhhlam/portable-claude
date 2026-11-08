@@ -5,7 +5,10 @@ import { PushService, type PushSender } from '../../src/server/push.js';
 import { pair, startTestApp, tmpDir, type TestApp } from './helpers.js';
 
 const vapid = () => ({ subject: 'mailto:you@example.com', publicKey: 'pub', privateKey: 'priv' });
-const sub = (n: number) => ({ endpoint: `https://push.example.com/s/${n}`, keys: { p256dh: 'p', auth: 'a' } });
+const sub = (n: number) => ({
+  endpoint: `https://push.example.com/s/${n}`,
+  keys: { p256dh: 'p', auth: 'a' },
+});
 
 describe('PushService', () => {
   it('sends to each subscription and prunes expired ones (404/410)', async () => {
@@ -34,18 +37,34 @@ describe('PushService', () => {
     const svc = new PushService(path.join(tmpDir(), 'push.json'), vapid, sender, silentLogger);
     svc.subscribe('dev-a', sub(1));
     svc.subscribe('dev-b', sub(2));
-    expect((await svc.notify({ title: 't', body: 'b', url: '/', tag: 'x' }, 'dev-a')).failed).toBe(1);
+    expect((await svc.notify({ title: 't', body: 'b', url: '/', tag: 'x' }, 'dev-a')).failed).toBe(
+      1,
+    );
     expect(calls).toBe(1);
     svc.removeDevice('dev-a');
     svc.unsubscribe(sub(2).endpoint);
     expect(svc.count()).toBe(0);
-    expect(() => svc.subscribe('d', { endpoint: 'http://insecure.example.com/x', keys: { p256dh: 'p', auth: 'a' } })).toThrow();
+    expect(() =>
+      svc.subscribe('d', {
+        endpoint: 'http://insecure.example.com/x',
+        keys: { p256dh: 'p', auth: 'a' },
+      }),
+    ).toThrow();
   });
 
   it('does nothing without VAPID keys', async () => {
-    const svc = new PushService(path.join(tmpDir(), 'push.json'), () => null, async () => 201, silentLogger);
+    const svc = new PushService(
+      path.join(tmpDir(), 'push.json'),
+      () => null,
+      async () => 201,
+      silentLogger,
+    );
     svc.subscribe('d', sub(1));
-    expect(await svc.notify({ title: 't', body: 'b', url: '/', tag: 'x' })).toEqual({ sent: 0, pruned: 0, failed: 0 });
+    expect(await svc.notify({ title: 't', body: 'b', url: '/', tag: 'x' })).toEqual({
+      sent: 0,
+      pruned: 0,
+      failed: 0,
+    });
     expect(svc.publicKey()).toBeNull();
   });
 });
@@ -64,7 +83,9 @@ describe('push API', () => {
     const r = await t.client.json<{ sent: number }>('POST', '/api/push/test');
     expect(r.body.sent).toBe(1);
     expect(t.sent[0]!.payload).toMatchObject({ title: 'Test notification' });
-    expect((await t.client.json('POST', '/api/push/subscribe', { endpoint: 'nope', keys: {} })).status).toBe(400);
+    expect(
+      (await t.client.json('POST', '/api/push/subscribe', { endpoint: 'nope', keys: {} })).status,
+    ).toBe(400);
     await t.client.json('DELETE', '/api/push/subscribe', { endpoint: sub(9).endpoint });
     expect(t.app.push.count()).toBe(0);
   });

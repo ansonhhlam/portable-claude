@@ -27,18 +27,26 @@ export interface VapidKeys {
 }
 
 /** Sends one push message. Returns the push service's HTTP status code. */
-export type PushSender = (sub: StoredSubscription, payload: string, vapid: VapidKeys) => Promise<number>;
+export type PushSender = (
+  sub: StoredSubscription,
+  payload: string,
+  vapid: VapidKeys,
+) => Promise<number>;
 
 export function webPushSender(): PushSender {
   return async (sub, payload, vapid) => {
     const webpush = await import('web-push');
     try {
-      const res = await webpush.sendNotification({ endpoint: sub.endpoint, keys: sub.keys }, payload, {
-        vapidDetails: vapid,
-        TTL: 6 * 3600,
-        urgency: 'high',
-        timeout: 15_000,
-      });
+      const res = await webpush.sendNotification(
+        { endpoint: sub.endpoint, keys: sub.keys },
+        payload,
+        {
+          vapidDetails: vapid,
+          TTL: 6 * 3600,
+          urgency: 'high',
+          timeout: 15_000,
+        },
+      );
       return res.statusCode;
     } catch (err) {
       const status = (err as { statusCode?: number }).statusCode;
@@ -76,7 +84,12 @@ export class PushService {
     if (!PUSH_HOST.test(sub.endpoint)) throw new Error('Push endpoint must be an https URL');
     this.file.update((d) => {
       d.subscriptions = d.subscriptions.filter((s) => s.endpoint !== sub.endpoint);
-      d.subscriptions.push({ endpoint: sub.endpoint, keys: sub.keys, deviceId, createdAt: new Date().toISOString() });
+      d.subscriptions.push({
+        endpoint: sub.endpoint,
+        keys: sub.keys,
+        deviceId,
+        createdAt: new Date().toISOString(),
+      });
     });
   }
 
@@ -97,7 +110,10 @@ export class PushService {
   }
 
   /** Send to every subscription (or one device). Expired subscriptions are removed. */
-  async notify(payload: PushPayload, deviceId?: string): Promise<{ sent: number; pruned: number; failed: number }> {
+  async notify(
+    payload: PushPayload,
+    deviceId?: string,
+  ): Promise<{ sent: number; pruned: number; failed: number }> {
     const vapid = this.vapid();
     const subs = this.file.get().subscriptions.filter((s) => !deviceId || s.deviceId === deviceId);
     const result = { sent: 0, pruned: 0, failed: 0 };

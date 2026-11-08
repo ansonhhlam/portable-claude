@@ -13,6 +13,8 @@ export interface LoggerOptions {
   maxFiles?: number;
   /** Also write to stderr (foreground mode). */
   console?: boolean;
+  /** Log file name inside dir (default longcord.log). */
+  fileName?: string;
   /** Allow prompt and file contents in debug logs (off by default). */
   logContent?: boolean;
 }
@@ -36,12 +38,13 @@ class FileSink {
     private readonly dir: string,
     private readonly maxBytes: number,
     private readonly maxFiles: number,
+    private readonly name: string,
   ) {
     fs.mkdirSync(dir, { recursive: true });
     this.open();
   }
   private get file(): string {
-    return path.join(this.dir, LOG_FILE);
+    return path.join(this.dir, this.name);
   }
   private open(): void {
     this.fd = fs.openSync(this.file, 'a', 0o600);
@@ -76,7 +79,12 @@ class FileSink {
 export function createLogger(opts: LoggerOptions = {}): Logger & { close(): void } {
   const min = ORDER[opts.level ?? 'info'];
   const sink = opts.dir
-    ? new FileSink(opts.dir, opts.maxBytes ?? 5 * 1024 * 1024, opts.maxFiles ?? 5)
+    ? new FileSink(
+        opts.dir,
+        opts.maxBytes ?? 5 * 1024 * 1024,
+        opts.maxFiles ?? 5,
+        opts.fileName ?? LOG_FILE,
+      )
     : null;
   const toConsole = opts.console ?? !sink;
 

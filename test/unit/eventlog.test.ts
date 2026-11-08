@@ -74,7 +74,8 @@ describe('EventLog', () => {
   it('skips corrupt or out-of-order lines in the middle', () => {
     const { file } = newLog();
     fs.mkdirSync(path.dirname(file), { recursive: true });
-    const ev = (seq: number) => JSON.stringify({ seq, ts: 't', type: 'state', data: { state: 'idle' } });
+    const ev = (seq: number) =>
+      JSON.stringify({ seq, ts: 't', type: 'state', data: { state: 'idle' } });
     fs.writeFileSync(file, [ev(1), 'not json', ev(2), ev(2), '', ev(3)].join('\n') + '\n');
     const log = new EventLog(file);
     expect(log.all().map((e) => e.seq)).toEqual([1, 2, 3]);

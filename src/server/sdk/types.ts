@@ -33,5 +33,8 @@ export interface AgentSdk {
   readonly kind: 'real' | 'mock';
   query(params: { prompt: AsyncIterable<SDKUserMessage>; options: Options }): AgentQuery;
   listSessions(options?: ListSessionsOptions): Promise<SDKSessionInfo[]>;
-  getSessionMessages(sessionId: string, options?: GetSessionMessagesOptions): Promise<SessionMessage[]>;
+  getSessionMessages(
+    sessionId: string,
+    options?: GetSessionMessagesOptions,
+  ): Promise<SessionMessage[]>;
 }

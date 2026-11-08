@@ -76,7 +76,10 @@ export function readJsonSync<T>(file: string, schema: z.ZodType<T>, fallback: ()
   }
   const parsed = schema.safeParse(raw);
   if (!parsed.success) {
-    throw new DataFileError(file, `failed validation: ${parsed.error.issues[0]?.message ?? 'invalid'}`);
+    throw new DataFileError(
+      file,
+      `failed validation: ${parsed.error.issues[0]?.message ?? 'invalid'}`,
+    );
   }
   return parsed.data;
 }

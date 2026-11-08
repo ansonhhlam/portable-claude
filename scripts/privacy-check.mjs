@@ -160,7 +160,8 @@ function ipv6Allowed(ip) {
   return l === '::1' || l === '::' || l.startsWith('2001:db8:') || l.startsWith('::ffff:127');
 }
 
-const EMAIL_OK = /@(?:[a-z0-9-]+\.)*(?:example\.(?:com|org|net)|users\.noreply\.github\.com|noreply\.github\.com)$|^git@github\.com$/i;
+const EMAIL_OK =
+  /@(?:[a-z0-9-]+\.)*(?:example\.(?:com|org|net)|users\.noreply\.github\.com|noreply\.github\.com)$|^git@github\.com$/i;
 
 /**
  * @typedef {{ id: string, test: (line: string, file: string) => string | null }} Rule
@@ -210,7 +211,9 @@ const LINE_RULES = [
   {
     id: 'email-address',
     test(line) {
-      for (const m of line.matchAll(/[A-Za-z0-9._%+-]+@[A-Za-z0-9-]+(?:\.[A-Za-z0-9-]+)*\.[A-Za-z]{2,}\b/g)) {
+      for (const m of line.matchAll(
+        /[A-Za-z0-9._%+-]+@[A-Za-z0-9-]+(?:\.[A-Za-z0-9-]+)*\.[A-Za-z]{2,}\b/g,
+      )) {
         if (!EMAIL_OK.test(m[0])) return m[0];
       }
       return null;
@@ -219,7 +222,9 @@ const LINE_RULES = [
   {
     id: 'ipv4-address',
     test(line) {
-      for (const m of line.matchAll(/(?<![\d.])(\d{1,3})\.(\d{1,3})\.(\d{1,3})\.(\d{1,3})(?![\d.]*\d)/g)) {
+      for (const m of line.matchAll(
+        /(?<![\d.])(\d{1,3})\.(\d{1,3})\.(\d{1,3})\.(\d{1,3})(?![\d.]*\d)/g,
+      )) {
         if (!ipv4Allowed(m[0])) return m[0];
       }
       return null;
@@ -325,7 +330,8 @@ function checkPath(file, where) {
     report(where ?? file, 'forbidden-file', file);
   }
   // A file name itself can leak identity.
-  for (const t of IDENTITY) if (t.re.test(file)) report(where ?? file, 'machine-identity-path', file);
+  for (const t of IDENTITY)
+    if (t.re.test(file)) report(where ?? file, 'machine-identity-path', file);
 }
 
 function scanIndex() {
@@ -390,9 +396,12 @@ function scanHistory() {
         ['author', aName],
         ['committer', cName],
       ]) {
-        for (const t of IDENTITY) if (t.re.test(name)) report(`commit ${commit} (${label})`, 'machine-identity', name);
+        for (const t of IDENTITY)
+          if (t.re.test(name)) report(`commit ${commit} (${label})`, 'machine-identity', name);
       }
-      msg.forEach((l, i) => scanLine('COMMIT_MSG.md', l, `commit ${commit} message:${i + 1}`, true));
+      msg.forEach((l, i) =>
+        scanLine('COMMIT_MSG.md', l, `commit ${commit} message:${i + 1}`, true),
+      );
       continue;
     }
     // diff chunk

@@ -1,11 +1,34 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import { describe, expect, it } from 'vitest';
-import { configFile, defaultConfig, parseConfigValue, setConfigValue, unknownConfigKeys } from '../../src/server/config.js';
-import { DataFileError, JsonFile, readJsonSync, writeJsonAtomicSync } from '../../src/server/fsutil.js';
-import { MIGRATIONS, SCHEMA_VERSION, currentVersion, migrate } from '../../src/server/migrations.js';
+import {
+  configFile,
+  defaultConfig,
+  parseConfigValue,
+  setConfigValue,
+  unknownConfigKeys,
+} from '../../src/server/config.js';
+import {
+  DataFileError,
+  JsonFile,
+  readJsonSync,
+  writeJsonAtomicSync,
+} from '../../src/server/fsutil.js';
+import {
+  MIGRATIONS,
+  SCHEMA_VERSION,
+  currentVersion,
+  migrate,
+} from '../../src/server/migrations.js';
 import { dataPaths, defaultDataDir } from '../../src/server/paths.js';
-import { PathError, findProjectFor, isInside, makeProject, projectIdFor, resolveSessionCwd } from '../../src/server/projects.js';
+import {
+  PathError,
+  findProjectFor,
+  isInside,
+  makeProject,
+  projectIdFor,
+  resolveSessionCwd,
+} from '../../src/server/projects.js';
 import { SessionStore } from '../../src/server/sessions.js';
 import { SpendTracker, localDate } from '../../src/server/spend.js';
 import { z } from 'zod';
@@ -19,10 +42,16 @@ describe('atomic files', () => {
     expect(readJsonSync(f, z.object({ n: z.number() }), () => ({ n: 0 }))).toEqual({ n: 1 });
     expect(fs.readdirSync(path.dirname(f))).toEqual(['x.json']);
     fs.writeFileSync(f, '{bad');
-    expect(() => readJsonSync(f, z.object({ n: z.number() }), () => ({ n: 0 }))).toThrow(DataFileError);
+    expect(() => readJsonSync(f, z.object({ n: z.number() }), () => ({ n: 0 }))).toThrow(
+      DataFileError,
+    );
     fs.writeFileSync(f, '{"n":"str"}');
-    expect(() => readJsonSync(f, z.object({ n: z.number() }), () => ({ n: 0 }))).toThrow(/validation/);
-    expect(readJsonSync(path.join(dir, 'missing.json'), z.object({ n: z.number() }), () => ({ n: 7 }))).toEqual({ n: 7 });
+    expect(() => readJsonSync(f, z.object({ n: z.number() }), () => ({ n: 0 }))).toThrow(
+      /validation/,
+    );
+    expect(
+      readJsonSync(path.join(dir, 'missing.json'), z.object({ n: z.number() }), () => ({ n: 7 })),
+    ).toEqual({ n: 7 });
   });
 
   it('JsonFile reloads when another process changes the file', () => {
@@ -67,11 +96,21 @@ describe('config', () => {
 
 describe('data directory', () => {
   it('follows per-OS conventions', () => {
-    expect(defaultDataDir({ APPDATA: 'C:\\Users\\you\\AppData\\Roaming' }, 'win32', 'C:\\Users\\you')).toMatch(/Roaming[\\/]longcord$/);
-    expect(defaultDataDir({}, 'darwin', '/Users/you')).toBe(path.join('/Users/you', 'Library', 'Application Support', 'longcord'));
-    expect(defaultDataDir({ XDG_DATA_HOME: '/home/you/.data' }, 'linux', '/home/you')).toBe(path.join('/home/you/.data', 'longcord'));
-    expect(defaultDataDir({}, 'linux', '/home/you')).toBe(path.join('/home/you', '.local', 'share', 'longcord'));
-    expect(defaultDataDir({ LONGCORD_HOME: 'rel' }, 'linux', '/home/you')).toBe(path.resolve('rel'));
+    expect(
+      defaultDataDir({ APPDATA: 'C:\\Users\\you\\AppData\\Roaming' }, 'win32', 'C:\\Users\\you'),
+    ).toMatch(/Roaming[\\/]longcord$/);
+    expect(defaultDataDir({}, 'darwin', '/Users/you')).toBe(
+      path.join('/Users/you', 'Library', 'Application Support', 'longcord'),
+    );
+    expect(defaultDataDir({ XDG_DATA_HOME: '/home/you/.data' }, 'linux', '/home/you')).toBe(
+      path.join('/home/you/.data', 'longcord'),
+    );
+    expect(defaultDataDir({}, 'linux', '/home/you')).toBe(
+      path.join('/home/you', '.local', 'share', 'longcord'),
+    );
+    expect(defaultDataDir({ LONGCORD_HOME: 'rel' }, 'linux', '/home/you')).toBe(
+      path.resolve('rel'),
+    );
   });
 });
 
@@ -95,7 +134,15 @@ describe('migrations', () => {
     const p = dataPaths(tmpDir());
     migrate(p, undefined, MIGRATIONS, 1);
     const id = '11111111-2222-4333-8444-555555555555';
-    const old = { id, title: 'Old', projectId: 'demo', cwd: '/tmp', mode: 'default', createdAt: 'a', updatedAt: 'b' };
+    const old = {
+      id,
+      title: 'Old',
+      projectId: 'demo',
+      cwd: '/tmp',
+      mode: 'default',
+      createdAt: 'a',
+      updatedAt: 'b',
+    };
     fs.mkdirSync(path.join(p.sessions, id), { recursive: true });
     fs.writeFileSync(path.join(p.sessions, id, 'meta.json'), JSON.stringify(old));
     const r = migrate(p);
@@ -103,7 +150,13 @@ describe('migrations', () => {
     expect(r.to).toBe(2);
     expect(r.backup && fs.existsSync(path.join(r.backup, 'sessions', id, 'meta.json'))).toBe(true);
     const store = new SessionStore(p.sessions);
-    expect(store.get(id)).toMatchObject({ totals: { runs: 0 }, preview: '', imported: false, archived: false, sdkSessionId: null });
+    expect(store.get(id)).toMatchObject({
+      totals: { runs: 0 },
+      preview: '',
+      imported: false,
+      archived: false,
+      sdkSessionId: null,
+    });
   });
 
   it('refuses data from a newer version', () => {
@@ -134,7 +187,9 @@ describe('project paths', () => {
   it('accepts the root and sub-folders', () => {
     const { proj, project } = setup();
     expect(resolveSessionCwd(project)).toBe(fs.realpathSync.native(proj));
-    expect(resolveSessionCwd(project, 'pkg/inner')).toBe(fs.realpathSync.native(path.join(proj, 'pkg', 'inner')));
+    expect(resolveSessionCwd(project, 'pkg/inner')).toBe(
+      fs.realpathSync.native(path.join(proj, 'pkg', 'inner')),
+    );
   });
 
   it('rejects traversal, absolute paths and missing folders', () => {
@@ -188,5 +243,22 @@ describe('spend', () => {
     now = new Date(2026, 0, 11, 1);
     expect(s.today()).toBe(0);
     expect(s.info(1)).toMatchObject({ todayUsd: 0, capReached: false, date: localDate(now) });
+  });
+});
+
+describe('display helpers', () => {
+  it('shortens project paths inside the home folder and strips Markdown from previews', async () => {
+    const { displayProject } = await import('../../src/server/app.js');
+    const { plainPreview } = await import('../../src/server/runner.js');
+    const home = path.resolve('/home/you');
+    expect(
+      displayProject({ id: 'a', name: 'a', path: path.join(home, 'code', 'app') }, home).path,
+    ).toBe(`~${path.sep}${path.join('code', 'app')}`);
+    expect(displayProject({ id: 'b', name: 'b', path: path.resolve('/srv/app') }, home).path).toBe(
+      path.resolve('/srv/app'),
+    );
+    expect(
+      plainPreview('All **done**. See [the docs](https://example.com)\n```js\ncode\n```  `x`'),
+    ).toBe('All done. See the docs x');
   });
 });

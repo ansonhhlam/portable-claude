@@ -8,13 +8,22 @@ afterEach(async () => {
 });
 
 async function create(prompt: string, mode = 'default', extra: Record<string, unknown> = {}) {
-  const r = await t.client.json<SessionDetail>('POST', '/api/sessions', { projectId: 'demo', prompt, mode, ...extra });
+  const r = await t.client.json<SessionDetail>('POST', '/api/sessions', {
+    projectId: 'demo',
+    prompt,
+    mode,
+    ...extra,
+  });
   expect(r.status).toBe(201);
   return r.body;
 }
 
 const finished = (id: string, n = 1) =>
-  waitFor(() => events(t, id).filter((e) => e.type === 'run.finished').length >= n && t.app.manager.state(id) === 'idle');
+  waitFor(
+    () =>
+      events(t, id).filter((e) => e.type === 'run.finished').length >= n &&
+      t.app.manager.state(id) === 'idle',
+  );
 
 describe('agent sessions', () => {
   it('runs a prompt and records text, totals and cost', async () => {
@@ -48,7 +57,11 @@ describe('agent sessions', () => {
     expect(req.data.summary).toBe('npm test');
     expect(req.data.canAlwaysAllow).toBe(true);
     expect(t.app.manager.state(s.id)).toBe('waiting');
-    const r = await t.client.json('POST', `/api/sessions/${s.id}/approvals/${req.data.approvalId}`, { decision: 'allow' });
+    const r = await t.client.json(
+      'POST',
+      `/api/sessions/${s.id}/approvals/${req.data.approvalId}`,
+      { decision: 'allow' },
+    );
     expect(r.status).toBe(200);
     await finished(s.id);
     const evs = events(t, s.id);
@@ -56,7 +69,11 @@ describe('agent sessions', () => {
     const end = evs.find((e) => e.type === 'tool.end' && !e.data.isError);
     expect(end).toBeDefined();
     // Answering twice reports expiry.
-    const again = await t.client.json<{ code: string }>('POST', `/api/sessions/${s.id}/approvals/${req.data.approvalId}`, { decision: 'allow' });
+    const again = await t.client.json<{ code: string }>(
+      'POST',
+      `/api/sessions/${s.id}/approvals/${req.data.approvalId}`,
+      { decision: 'allow' },
+    );
     expect(again.status).toBe(409);
     expect(again.body.code).toBe('expired');
   });
@@ -69,10 +86,16 @@ describe('agent sessions', () => {
     expect(req.data.toolName).toBe('Edit');
     expect(req.data.diff?.path).toBe('src/app.ts');
     expect(req.data.diff?.lines.some((l) => l.kind === 'add')).toBe(true);
-    await t.client.json('POST', `/api/sessions/${s.id}/approvals/${req.data.approvalId}`, { decision: 'deny', note: 'use a template literal' });
+    await t.client.json('POST', `/api/sessions/${s.id}/approvals/${req.data.approvalId}`, {
+      decision: 'deny',
+      note: 'use a template literal',
+    });
     await finished(s.id);
     const evs = events(t, s.id);
-    expect(lastOf(evs, 'approval.resolved')?.data).toMatchObject({ resolution: 'deny', note: 'use a template literal' });
+    expect(lastOf(evs, 'approval.resolved')?.data).toMatchObject({
+      resolution: 'deny',
+      note: 'use a template literal',
+    });
     const end = evs.find((e) => e.type === 'tool.end' && e.data.isError);
     expect(end?.type === 'tool.end' && end.data.output).toContain('use a template literal');
   });
@@ -82,9 +105,13 @@ describe('agent sessions', () => {
     await pair(t);
     const s = await create('run bash tests');
     const req = await waitFor(() => lastOf(events(t, s.id), 'approval.request'));
-    await t.client.json('POST', `/api/sessions/${s.id}/approvals/${req.data.approvalId}`, { decision: 'always' });
+    await t.client.json('POST', `/api/sessions/${s.id}/approvals/${req.data.approvalId}`, {
+      decision: 'always',
+    });
     await finished(s.id);
-    await t.client.json('POST', `/api/sessions/${s.id}/messages`, { text: 'run the bash tests again' });
+    await t.client.json('POST', `/api/sessions/${s.id}/messages`, {
+      text: 'run the bash tests again',
+    });
     await finished(s.id, 2);
     expect(events(t, s.id).filter((e) => e.type === 'approval.request')).toHaveLength(1);
     expect(t.sdk.queries).toHaveLength(1);
@@ -106,10 +133,12 @@ describe('agent sessions', () => {
     const res = lastOf(evs, 'approval.resolved');
     expect(res?.data).toMatchObject({ approvalId: req.data.approvalId, resolution: 'expired' });
     expect(lastOf(evs, 'state')?.data.state).toBe('idle');
-    const detail = (await (async () => {
-      await pair(t);
-      return t.client.json<SessionDetail>('GET', `/api/sessions/${s.id}`);
-    })()).body;
+    const detail = (
+      await (async () => {
+        await pair(t);
+        return t.client.json<SessionDetail>('GET', `/api/sessions/${s.id}`);
+      })()
+    ).body;
     expect(detail.pendingApprovalIds).toEqual([]);
   });
 
@@ -129,7 +158,9 @@ describe('agent sessions', () => {
     t = await startTestApp();
     await pair(t);
     const s = await create('wait for a while');
-    await waitFor(() => t.app.manager.state(s.id) === 'working' && lastOf(events(t, s.id), 'assistant.message'));
+    await waitFor(
+      () => t.app.manager.state(s.id) === 'working' && lastOf(events(t, s.id), 'assistant.message'),
+    );
     const r = await t.client.json('POST', `/api/sessions/${s.id}/interrupt`);
     expect(r.status).toBe(202);
     await finished(s.id);
@@ -140,7 +171,9 @@ describe('agent sessions', () => {
     t = await startTestApp({ delayMs: 5 });
     await pair(t);
     const s = await create('hello one');
-    const r = await t.client.json<{ queued: boolean }>('POST', `/api/sessions/${s.id}/messages`, { text: 'hello two' });
+    const r = await t.client.json<{ queued: boolean }>('POST', `/api/sessions/${s.id}/messages`, {
+      text: 'hello two',
+    });
     expect(r.body.queued).toBe(true);
     await finished(s.id, 2);
     const msgs = events(t, s.id).filter((e) => e.type === 'user.message');
@@ -154,13 +187,20 @@ describe('agent sessions', () => {
     await pair(t);
     const s = await create('hello');
     await finished(s.id);
-    const ok = await t.client.json<SessionDetail>('POST', `/api/sessions/${s.id}/mode`, { mode: 'acceptEdits' });
+    const ok = await t.client.json<SessionDetail>('POST', `/api/sessions/${s.id}/mode`, {
+      mode: 'acceptEdits',
+    });
     expect(ok.body.mode).toBe('acceptEdits');
     expect(t.sdk.queries[0]!.modeChanges).toContain('acceptEdits');
-    const refused = await t.client.json<{ code: string }>('POST', `/api/sessions/${s.id}/mode`, { mode: 'bypassPermissions' });
+    const refused = await t.client.json<{ code: string }>('POST', `/api/sessions/${s.id}/mode`, {
+      mode: 'bypassPermissions',
+    });
     expect(refused.status).toBe(400);
     expect(refused.body.code).toBe('bypass_confirm_required');
-    const bypass = await t.client.json<SessionDetail>('POST', `/api/sessions/${s.id}/mode`, { mode: 'bypassPermissions', confirmBypass: true });
+    const bypass = await t.client.json<SessionDetail>('POST', `/api/sessions/${s.id}/mode`, {
+      mode: 'bypassPermissions',
+      confirmBypass: true,
+    });
     expect(bypass.body.mode).toBe('bypassPermissions');
     expect(lastOf(events(t, s.id), 'mode.changed')?.data.mode).toBe('bypassPermissions');
     // The process started without the bypass flag is released and restarts with it.
@@ -174,7 +214,11 @@ describe('agent sessions', () => {
   it('creating a session in bypass mode needs confirmation', async () => {
     t = await startTestApp();
     await pair(t);
-    const r = await t.client.json<{ code: string }>('POST', '/api/sessions', { projectId: 'demo', prompt: 'x', mode: 'bypassPermissions' });
+    const r = await t.client.json<{ code: string }>('POST', '/api/sessions', {
+      projectId: 'demo',
+      prompt: 'x',
+      mode: 'bypassPermissions',
+    });
     expect(r.body.code).toBe('bypass_confirm_required');
     await create('hello', 'bypassPermissions', { confirmBypass: true });
   });
@@ -212,8 +256,12 @@ describe('agent sessions', () => {
     const task = evs.find((e) => e.type === 'tool.start' && e.data.name === 'Task');
     expect(task).toBeDefined();
     const parent = task!.type === 'tool.start' ? task!.data.toolUseId : '';
-    expect(evs.some((e) => e.type === 'tool.start' && e.data.parentToolUseId === parent)).toBe(true);
-    expect(evs.some((e) => e.type === 'assistant.message' && e.data.parentToolUseId === parent)).toBe(true);
+    expect(evs.some((e) => e.type === 'tool.start' && e.data.parentToolUseId === parent)).toBe(
+      true,
+    );
+    expect(
+      evs.some((e) => e.type === 'assistant.message' && e.data.parentToolUseId === parent),
+    ).toBe(true);
   });
 
   it('refuses new runs once the daily spend cap is reached', async () => {
@@ -225,10 +273,18 @@ describe('agent sessions', () => {
     );
     const s = await create('hello');
     await finished(s.id);
-    const r = await t.client.json<{ code: string; error: string }>('POST', `/api/sessions/${s.id}/messages`, { text: 'more' });
+    const r = await t.client.json<{ code: string; error: string }>(
+      'POST',
+      `/api/sessions/${s.id}/messages`,
+      { text: 'more' },
+    );
     expect(r.status).toBe(429);
     expect(r.body.code).toBe('spend_cap');
-    const r2 = await t.client.json<{ code: string }>('POST', '/api/sessions', { projectId: 'demo', prompt: 'x', mode: 'default' });
+    const r2 = await t.client.json<{ code: string }>('POST', '/api/sessions', {
+      projectId: 'demo',
+      prompt: 'x',
+      mode: 'default',
+    });
     expect(r2.body.code).toBe('spend_cap');
     expect(t.app.store.list()).toHaveLength(1);
     await waitFor(() => t.sent.some((m) => (m.payload as { tag: string }).tag === 'spend-cap'));
@@ -239,7 +295,11 @@ describe('agent sessions', () => {
   it('refuses to start without an API key and never falls back to another login', async () => {
     t = await startTestApp({ env: { CLAUDE_CODE_OAUTH_TOKEN: 'should-be-ignored' } });
     await pair(t);
-    const r = await t.client.json<{ code: string }>('POST', '/api/sessions', { projectId: 'demo', prompt: 'x', mode: 'default' });
+    const r = await t.client.json<{ code: string }>('POST', '/api/sessions', {
+      projectId: 'demo',
+      prompt: 'x',
+      mode: 'default',
+    });
     expect(r.status).toBe(409);
     expect(r.body.code).toBe('no_credentials');
     expect(t.sdk.queries).toHaveLength(0);
@@ -250,9 +310,13 @@ describe('agent sessions', () => {
     await pair(t);
     const s = await create('hello');
     await finished(s.id);
-    const renamed = await t.client.json<SessionDetail>('PATCH', `/api/sessions/${s.id}`, { title: 'New name' });
+    const renamed = await t.client.json<SessionDetail>('PATCH', `/api/sessions/${s.id}`, {
+      title: 'New name',
+    });
     expect(renamed.body.title).toBe('New name');
-    const archived = await t.client.json<SessionDetail>('PATCH', `/api/sessions/${s.id}`, { archived: true });
+    const archived = await t.client.json<SessionDetail>('PATCH', `/api/sessions/${s.id}`, {
+      archived: true,
+    });
     expect(archived.body.archived).toBe(true);
     expect((await t.client.json('DELETE', `/api/sessions/${s.id}`)).status).toBe(200);
     expect((await t.client.json('GET', `/api/sessions/${s.id}`)).status).toBe(404);
@@ -261,16 +325,26 @@ describe('agent sessions', () => {
   it('imports a session started elsewhere and resumes it', async () => {
     t = await startTestApp();
     await pair(t);
-    const c = await t.client.json<{ sdkSessionId: string; summary: string }[]>('GET', '/api/import/candidates?projectId=demo');
+    const c = await t.client.json<{ sdkSessionId: string; summary: string }[]>(
+      'GET',
+      '/api/import/candidates?projectId=demo',
+    );
     expect(c.body).toHaveLength(1);
-    const imp = await t.client.json<SessionDetail>('POST', '/api/import', { projectId: 'demo', sdkSessionId: c.body[0]!.sdkSessionId });
+    const imp = await t.client.json<SessionDetail>('POST', '/api/import', {
+      projectId: 'demo',
+      sdkSessionId: c.body[0]!.sdkSessionId,
+    });
     expect(imp.status).toBe(201);
     expect(imp.body.imported).toBe(true);
     const hist = events(t, imp.body.id).filter((e) => e.type === 'history.message');
     expect(hist.length).toBe(4);
     // Already imported sessions are no longer offered.
-    expect((await t.client.json<unknown[]>('GET', '/api/import/candidates?projectId=demo')).body).toHaveLength(0);
-    await t.client.json('POST', `/api/sessions/${imp.body.id}/messages`, { text: 'continue please' });
+    expect(
+      (await t.client.json<unknown[]>('GET', '/api/import/candidates?projectId=demo')).body,
+    ).toHaveLength(0);
+    await t.client.json('POST', `/api/sessions/${imp.body.id}/messages`, {
+      text: 'continue please',
+    });
     await finished(imp.body.id);
     expect(t.sdk.queries[0]!.received).toEqual(['continue please']);
     const q = t.sdk.queries[0] as unknown as { sessionId: string };
@@ -287,10 +361,19 @@ describe('agent sessions', () => {
     expect(all.map((m) => Number(m.id))).toEqual(Array.from({ length: total }, (_, i) => i + 1));
     // Simulated background: the client reconnects with Last-Event-ID and receives only newer events.
     const half = Math.floor(total / 2);
-    const rest = await readSse(`${t.base}/api/sessions/${s.id}/events?after=1`, t.client.cookie, total - half, { 'last-event-id': String(half) });
+    const rest = await readSse(
+      `${t.base}/api/sessions/${s.id}/events?after=1`,
+      t.client.cookie,
+      total - half,
+      { 'last-event-id': String(half) },
+    );
     expect(Number(rest[0]!.id)).toBe(half + 1);
     // Live events arrive after the backlog.
-    const live = readSse(`${t.base}/api/sessions/${s.id}/events?after=${total}`, t.client.cookie, 1);
+    const live = readSse(
+      `${t.base}/api/sessions/${s.id}/events?after=${total}`,
+      t.client.cookie,
+      1,
+    );
     await new Promise((r) => setTimeout(r, 100));
     await t.client.json('PATCH', `/api/sessions/${s.id}`, { title: 'Renamed' });
     const got = await live;
@@ -301,15 +384,24 @@ describe('agent sessions', () => {
     t = await startTestApp();
     await pair(t);
     const me = (await t.client.json<{ deviceId: string }>('GET', '/api/me')).body;
-    const sub = await t.client.json('POST', '/api/push/subscribe', { endpoint: 'https://push.example.com/sub/2', keys: { p256dh: 'p', auth: 'a' } });
+    const sub = await t.client.json('POST', '/api/push/subscribe', {
+      endpoint: 'https://push.example.com/sub/2',
+      keys: { p256dh: 'p', auth: 'a' },
+    });
     expect(sub.status).toBe(200);
     expect(t.app.push.count(me.deviceId)).toBe(1);
     const s = await create('run bash tests');
     const req = await waitFor(() => lastOf(events(t, s.id), 'approval.request'));
-    await waitFor(() => t.sent.some((m) => (m.payload as { title: string }).title === 'Approval needed'));
-    await t.client.json('POST', `/api/sessions/${s.id}/approvals/${req.data.approvalId}`, { decision: 'allow' });
+    await waitFor(() =>
+      t.sent.some((m) => (m.payload as { title: string }).title === 'Approval needed'),
+    );
+    await t.client.json('POST', `/api/sessions/${s.id}/approvals/${req.data.approvalId}`, {
+      decision: 'allow',
+    });
     await finished(s.id);
-    await waitFor(() => t.sent.some((m) => (m.payload as { title: string }).title === 'Run finished'));
+    await waitFor(() =>
+      t.sent.some((m) => (m.payload as { title: string }).title === 'Run finished'),
+    );
     // Notification text never includes the command itself.
     expect(JSON.stringify(t.sent)).not.toContain('npm test');
   });
@@ -321,7 +413,9 @@ describe('agent sessions', () => {
     await waitFor(() => lastOf(events(t, s.id), 'approval.request'));
     const log = t.app.store.events(s.id);
     await t.app.close('Server shutting down');
-    expect([...log.all()].some((e) => e.type === 'approval.resolved' && e.data.resolution === 'aborted')).toBe(true);
+    expect(
+      [...log.all()].some((e) => e.type === 'approval.resolved' && e.data.resolution === 'aborted'),
+    ).toBe(true);
     expect(t.sdk.queries[0]!.isClosed).toBe(true);
   });
 });

@@ -40,7 +40,12 @@ export function securityHeaders(res: ServerResponse, https: boolean): void {
   if (https) res.setHeader('Strict-Transport-Security', 'max-age=31536000');
 }
 
-export function sendJson(res: ServerResponse, status: number, body: unknown, headers: Record<string, string | string[]> = {}): void {
+export function sendJson(
+  res: ServerResponse,
+  status: number,
+  body: unknown,
+  headers: Record<string, string | string[]> = {},
+): void {
   const data = JSON.stringify(body);
   res.writeHead(status, {
     'Content-Type': 'application/json; charset=utf-8',
@@ -87,7 +92,12 @@ const MIME: Record<string, string> = {
 };
 
 /** Serve a file from the built web app. Unknown paths fall back to index.html. */
-export function serveStatic(webDir: string, urlPath: string, req: IncomingMessage, res: ServerResponse): void {
+export function serveStatic(
+  webDir: string,
+  urlPath: string,
+  req: IncomingMessage,
+  res: ServerResponse,
+): void {
   let rel: string;
   try {
     rel = decodeURIComponent(urlPath);
@@ -97,7 +107,8 @@ export function serveStatic(webDir: string, urlPath: string, req: IncomingMessag
   if (rel.includes('\0')) throw new HttpError(400, 'bad_path', 'Bad path');
   const root = path.resolve(webDir);
   let file = path.resolve(root, '.' + path.posix.normalize('/' + rel));
-  if (!file.startsWith(root + path.sep) && file !== root) throw new HttpError(404, 'not_found', 'Not found');
+  if (!file.startsWith(root + path.sep) && file !== root)
+    throw new HttpError(404, 'not_found', 'Not found');
   let st: fs.Stats | undefined;
   try {
     st = fs.statSync(file);
@@ -131,5 +142,11 @@ export function serveStatic(webDir: string, urlPath: string, req: IncomingMessag
 }
 
 export function isLoopback(addr: string | undefined): boolean {
-  return !!addr && (addr === '127.0.0.1' || addr === '::1' || addr === '::ffff:127.0.0.1' || addr.startsWith('127.'));
+  return (
+    !!addr &&
+    (addr === '127.0.0.1' ||
+      addr === '::1' ||
+      addr === '::ffff:127.0.0.1' ||
+      addr.startsWith('127.'))
+  );
 }

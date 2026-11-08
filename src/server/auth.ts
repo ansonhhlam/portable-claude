@@ -1,4 +1,11 @@
-import { createHash, createHmac, randomBytes, randomUUID, scryptSync, timingSafeEqual } from 'node:crypto';
+import {
+  createHash,
+  createHmac,
+  randomBytes,
+  randomUUID,
+  scryptSync,
+  timingSafeEqual,
+} from 'node:crypto';
 import { z } from 'zod';
 import type { DeviceInfo } from '../shared/api.js';
 import { JsonFile } from './fsutil.js';
@@ -21,7 +28,14 @@ const SCRYPT = { N: 16384, r: 8, p: 1, keylen: 32 };
 export function hashPasscode(passcode: string): string {
   const salt = randomBytes(16);
   const hash = scryptSync(passcode, salt, SCRYPT.keylen, { N: SCRYPT.N, r: SCRYPT.r, p: SCRYPT.p });
-  return ['scrypt', SCRYPT.N, SCRYPT.r, SCRYPT.p, salt.toString('base64url'), hash.toString('base64url')].join('$');
+  return [
+    'scrypt',
+    SCRYPT.N,
+    SCRYPT.r,
+    SCRYPT.p,
+    salt.toString('base64url'),
+    hash.toString('base64url'),
+  ].join('$');
 }
 
 export function verifyPasscode(passcode: string, stored: string | null): boolean {
@@ -93,9 +107,19 @@ export class DeviceStore {
   create(name: string): { id: string; token: string } {
     const id = randomUUID();
     const token = randomBytes(32).toString('base64url');
-    const clean = name.replace(/[\u0000-\u001f]/g, '').trim().slice(0, 60) || 'Device';
+    const clean =
+      name
+        .replace(/[\u0000-\u001f]/g, '')
+        .trim()
+        .slice(0, 60) || 'Device';
     this.file.update((d) => {
-      d.devices.push({ id, name: clean, tokenHash: sha256(token), createdAt: new Date().toISOString(), lastSeenAt: null });
+      d.devices.push({
+        id,
+        name: clean,
+        tokenHash: sha256(token),
+        createdAt: new Date().toISOString(),
+        lastSeenAt: null,
+      });
     });
     return { id, token };
   }
@@ -116,7 +140,9 @@ export class DeviceStore {
 
   /** Revoke by id or unique id prefix. Returns the revoked device's name. */
   revoke(idOrPrefix: string): string | null {
-    const matches = this.file.get().devices.filter((d) => d.id === idOrPrefix || d.id.startsWith(idOrPrefix));
+    const matches = this.file
+      .get()
+      .devices.filter((d) => d.id === idOrPrefix || d.id.startsWith(idOrPrefix));
     if (matches.length !== 1) return null;
     const target = matches[0]!;
     this.file.update((all) => {
@@ -169,7 +195,10 @@ export function signCookie(secret: string, deviceId: string, token: string): str
   return `${body}.${sig}`;
 }
 
-export function parseCookie(secret: string, value: string): { deviceId: string; token: string } | null {
+export function parseCookie(
+  secret: string,
+  value: string,
+): { deviceId: string; token: string } | null {
   const parts = value.split('.');
   if (parts.length !== 3) return null;
   const [deviceId, token, sig] = parts as [string, string, string];
@@ -213,7 +242,10 @@ export interface LimiterOptions {
  * A global limit protects against attempts spread over many clients.
  */
 export class LoginLimiter {
-  private clients = new Map<string, { failures: number[]; lockedUntil: number; lockouts: number }>();
+  private clients = new Map<
+    string,
+    { failures: number[]; lockedUntil: number; lockouts: number }
+  >();
   private global: number[] = [];
   private globalLockedUntil = 0;
   private readonly o: Required<LimiterOptions>;

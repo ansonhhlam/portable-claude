@@ -133,7 +133,12 @@ function scriptFor(text: string): Step[] {
   if (t.includes('bash') || t.includes('test')) {
     steps.push(
       { kind: 'text', text: 'Let me run the test suite.' },
-      { kind: 'tool', name: 'Bash', input: { command: 'npm test', description: 'Run tests' }, result: '12 passing (1.2s)' },
+      {
+        kind: 'tool',
+        name: 'Bash',
+        input: { command: 'npm test', description: 'Run tests' },
+        result: '12 passing (1.2s)',
+      },
     );
   }
   if (t.includes('edit') || t.includes('fix')) {
@@ -221,7 +226,9 @@ export class MockQuery implements AgentQuery {
         const text =
           typeof content === 'string'
             ? content
-            : content.map((b) => ('text' in b && typeof b.text === 'string' ? b.text : '')).join('');
+            : content
+                .map((b) => ('text' in b && typeof b.text === 'string' ? b.text : ''))
+                .join('');
         this.received.push(text);
         await this.turn(text);
       }
@@ -272,10 +279,20 @@ export class MockQuery implements AgentQuery {
     });
   }
 
-  private async streamText(text: string, signal: AbortSignal, parent: string | null): Promise<void> {
+  private async streamText(
+    text: string,
+    signal: AbortSignal,
+    parent: string | null,
+  ): Promise<void> {
     const id = 'msg_' + randomUUID().slice(0, 12);
     const wrap = (event: unknown) =>
-      this.emit({ type: 'stream_event', event, parent_tool_use_id: parent, uuid: randomUUID(), session_id: this.sessionId });
+      this.emit({
+        type: 'stream_event',
+        event,
+        parent_tool_use_id: parent,
+        uuid: randomUUID(),
+        session_id: this.sessionId,
+      });
     wrap({ type: 'message_start', message: { id, role: 'assistant', content: [] } });
     wrap({ type: 'content_block_start', index: 0, content_block: { type: 'text', text: '' } });
     const chunks = text.match(/\S+\s*/g) ?? [text];
@@ -310,10 +327,7 @@ export class MockQuery implements AgentQuery {
     }
   }
 
-  private async runTool(
-    step: Extract<Step, { kind: 'tool' }>,
-    signal: AbortSignal,
-  ): Promise<void> {
+  private async runTool(step: Extract<Step, { kind: 'tool' }>, signal: AbortSignal): Promise<void> {
     const id = step.id ?? 'toolu_' + randomUUID().slice(0, 12);
     const parent = step.parent ?? null;
     this.emit({
@@ -367,7 +381,13 @@ export class MockQuery implements AgentQuery {
       // Subagent activity, attributed to the parent Task tool call.
       await this.streamText('Looking through the routes folder.', signal, id);
       await this.runTool(
-        { kind: 'tool', name: 'Read', input: { file_path: 'src/routes/index.ts' }, result: '…', parent: id },
+        {
+          kind: 'tool',
+          name: 'Read',
+          input: { file_path: 'src/routes/index.ts' },
+          result: '…',
+          parent: id,
+        },
         signal,
       );
     }

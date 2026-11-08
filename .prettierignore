@@ -7,3 +7,4 @@ package-lock.json
 CHANGELOG.md
 docs/assets
 .work
+docs/reference/cli.md

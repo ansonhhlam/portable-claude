@@ -79,7 +79,9 @@ export function migrate(
   if (from > 0) backup = backupData(paths, from);
 
   let version = from;
-  const pending = migrations.filter((m) => m.to > from && m.to <= target).sort((a, b) => a.to - b.to);
+  const pending = migrations
+    .filter((m) => m.to > from && m.to <= target)
+    .sort((a, b) => a.to - b.to);
   for (const m of pending) {
     log.info('running data migration', { to: m.to, description: m.description });
     m.up(paths);

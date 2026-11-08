@@ -32,25 +32,44 @@ export class Client {
     readonly origin: string = base,
   ) {}
 
-  async req(method: string, p: string, body?: unknown, headers: Record<string, string> = {}): Promise<Response> {
+  async req(
+    method: string,
+    p: string,
+    body?: unknown,
+    headers: Record<string, string> = {},
+  ): Promise<Response> {
     const h: Record<string, string> = { ...headers };
     if (this.cookie) h.cookie = this.cookie;
     if (method !== 'GET') h.origin ??= this.origin;
     if (body !== undefined) h['content-type'] = 'application/json';
-    const res = await fetch(this.base + p, { method, headers: h, body: body === undefined ? undefined : JSON.stringify(body) });
+    const res = await fetch(this.base + p, {
+      method,
+      headers: h,
+      body: body === undefined ? undefined : JSON.stringify(body),
+    });
     const set = res.headers.get('set-cookie');
     if (set) this.cookie = set.split(';')[0]!.endsWith('=') ? '' : set.split(';')[0]!;
     return res;
   }
 
-  async json<T = unknown>(method: string, p: string, body?: unknown): Promise<{ status: number; body: T }> {
+  async json<T = unknown>(
+    method: string,
+    p: string,
+    body?: unknown,
+  ): Promise<{ status: number; body: T }> {
     const res = await this.req(method, p, body);
     return { status: res.status, body: (await res.json()) as T };
   }
 }
 
 export async function startTestApp(
-  opts: { config?: Record<string, unknown>; env?: NodeJS.ProcessEnv; limiter?: LoginLimiter; dir?: string; delayMs?: number } = {},
+  opts: {
+    config?: Record<string, unknown>;
+    env?: NodeJS.ProcessEnv;
+    limiter?: LoginLimiter;
+    dir?: string;
+    delayMs?: number;
+  } = {},
 ): Promise<TestApp> {
   const dir = opts.dir ?? tmpDir();
   const project = path.join(dir, 'projects', 'demo-app');
@@ -59,7 +78,10 @@ export async function startTestApp(
   if (!fs.existsSync(path.join(dir, 'config.json'))) {
     fs.writeFileSync(
       path.join(dir, 'config.json'),
-      JSON.stringify({ projects: [{ id: 'demo', name: 'demo-app', path: project }], ...opts.config }),
+      JSON.stringify({
+        projects: [{ id: 'demo', name: 'demo-app', path: project }],
+        ...opts.config,
+      }),
     );
   }
   const sdk = createMockSdk({ delayMs: opts.delayMs ?? 0 });
@@ -95,13 +117,20 @@ export async function startTestApp(
 }
 
 /** Pair a client using a fresh one-time token. */
-export async function pair(t: TestApp, client: Client = t.client, name = 'Test phone'): Promise<void> {
+export async function pair(
+  t: TestApp,
+  client: Client = t.client,
+  name = 'Test phone',
+): Promise<void> {
   const { token } = t.app.pairing.create();
   const res = await client.req('POST', '/api/auth/pair', { token, deviceName: name });
   if (res.status !== 200) throw new Error(`pair failed: ${res.status}`);
 }
 
-export async function waitFor<T>(fn: () => T | undefined | false | Promise<T | undefined | false>, ms = 5000): Promise<T> {
+export async function waitFor<T>(
+  fn: () => T | undefined | false | Promise<T | undefined | false>,
+  ms = 5000,
+): Promise<T> {
   const until = Date.now() + ms;
   for (;;) {
     const v = await fn();
@@ -115,12 +144,22 @@ export function events(t: TestApp, id: string): readonly SessionEvent[] {
   return t.app.store.events(id).all();
 }
 
-export function lastOf<K extends SessionEvent['type']>(evs: readonly SessionEvent[], type: K): Extract<SessionEvent, { type: K }> | undefined {
-  return [...evs].reverse().find((e) => e.type === type) as Extract<SessionEvent, { type: K }> | undefined;
+export function lastOf<K extends SessionEvent['type']>(
+  evs: readonly SessionEvent[],
+  type: K,
+): Extract<SessionEvent, { type: K }> | undefined {
+  return [...evs].reverse().find((e) => e.type === type) as
+    Extract<SessionEvent, { type: K }> | undefined;
 }
 
 /** Read an SSE stream until `count` data messages arrive (or timeout). */
-export async function readSse(url: string, cookie: string, count: number, headers: Record<string, string> = {}, ms = 4000): Promise<{ id: string | null; data: unknown }[]> {
+export async function readSse(
+  url: string,
+  cookie: string,
+  count: number,
+  headers: Record<string, string> = {},
+  ms = 4000,
+): Promise<{ id: string | null; data: unknown }[]> {
   const ac = new AbortController();
   const timer = setTimeout(() => ac.abort(), ms);
   const out: { id: string | null; data: unknown }[] = [];

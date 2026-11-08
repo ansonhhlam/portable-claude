@@ -68,7 +68,8 @@ export class AgentManager {
   }
 
   send(id: string, text: string): void {
-    if (this.shuttingDown) throw new AgentError('shutting_down', 'The server is shutting down', 503);
+    if (this.shuttingDown)
+      throw new AgentError('shutting_down', 'The server is shutting down', 503);
     this.runner(id).send(text);
   }
 
@@ -104,7 +105,10 @@ export class AgentManager {
       Approvals.expireStale(log, (aid) => this.deps.approvals.pendingFor(meta.id).includes(aid));
       const lastState = [...log.all()].reverse().find((e) => e.type === 'state');
       if (lastState && lastState.type === 'state' && lastState.data.state !== 'idle') {
-        log.append('notice', { level: 'warn', message: 'The server restarted while the agent was working. Send a message to continue.' });
+        log.append('notice', {
+          level: 'warn',
+          message: 'The server restarted while the agent was working. Send a message to continue.',
+        });
         log.append('state', { state: 'idle' });
       }
     }
@@ -215,12 +219,24 @@ class Runner {
     } catch (err) {
       if (this.query === q) {
         this.logger.error('agent stopped with an error', { err });
-        this.log.append('notice', { level: 'error', message: `The agent stopped: ${String((err as Error)?.message ?? err)}` });
+        this.log.append('notice', {
+          level: 'error',
+          message: `The agent stopped: ${String((err as Error)?.message ?? err)}`,
+        });
       }
     } finally {
       this.flush();
-      if (this.runId) this.finishRun({ isError: true, subtype: 'stopped', costUsd: 0, durationMs: 0, turns: 0, errors: ['The agent process ended'] });
-      if (this.deps.approvals.pendingFor(this.id).length) this.deps.approvals.abortSession(this.id, 'Agent stopped');
+      if (this.runId)
+        this.finishRun({
+          isError: true,
+          subtype: 'stopped',
+          costUsd: 0,
+          durationMs: 0,
+          turns: 0,
+          errors: ['The agent process ended'],
+        });
+      if (this.deps.approvals.pendingFor(this.id).length)
+        this.deps.approvals.abortSession(this.id, 'Agent stopped');
       this.setState('idle');
     }
   }
@@ -244,11 +260,13 @@ class Runner {
         } else if (ev.type === 'content_block_start') {
           const block = ev.content_block as { type?: string } | undefined;
           const id = this.streamMsg.get(key);
-          if (block?.type === 'text' && id && this.assistantText.get(id)) this.bufferDelta(id, '\n\n', parent);
+          if (block?.type === 'text' && id && this.assistantText.get(id))
+            this.bufferDelta(id, '\n\n', parent);
         } else if (ev.type === 'content_block_delta') {
           const delta = ev.delta as { type?: string; text?: string } | undefined;
           const id = this.streamMsg.get(key);
-          if (delta?.type === 'text_delta' && delta.text && id) this.bufferDelta(id, delta.text, parent);
+          if (delta?.type === 'text_delta' && delta.text && id)
+            this.bufferDelta(id, delta.text, parent);
         }
         return;
       }
@@ -257,14 +275,24 @@ class Runner {
         const parent = m.parent_tool_use_id ?? null;
         const msg = m.message as unknown as { id: string; content: unknown };
         this.flush();
-        for (const block of Array.isArray(msg.content) ? (msg.content as Record<string, unknown>[]) : []) {
+        for (const block of Array.isArray(msg.content)
+          ? (msg.content as Record<string, unknown>[])
+          : []) {
           if (block.type === 'text' && typeof block.text === 'string' && block.text) {
             const prev = this.assistantText.get(msg.id);
             const text = prev ? `${prev}\n\n${block.text}` : block.text;
             this.assistantText.set(msg.id, text);
-            this.log.append('assistant.message', { messageId: msg.id, text, parentToolUseId: parent });
+            this.log.append('assistant.message', {
+              messageId: msg.id,
+              text,
+              parentToolUseId: parent,
+            });
             if (!parent) this.setPreview(text);
-          } else if (block.type === 'tool_use' && typeof block.id === 'string' && typeof block.name === 'string') {
+          } else if (
+            block.type === 'tool_use' &&
+            typeof block.id === 'string' &&
+            typeof block.name === 'string'
+          ) {
             const input = (block.input ?? {}) as Record<string, unknown>;
             this.log.append('tool.start', {
               toolUseId: block.id,
@@ -281,8 +309,16 @@ class Runner {
         if (!Array.isArray(content)) return;
         for (const block of content as Record<string, unknown>[]) {
           if (block.type !== 'tool_result' || typeof block.tool_use_id !== 'string') continue;
-          const { text, truncated } = truncate(toolResultText(block.content), this.deps.config().maxToolOutputChars);
-          this.log.append('tool.end', { toolUseId: block.tool_use_id, isError: block.is_error === true, output: text, truncated });
+          const { text, truncated } = truncate(
+            toolResultText(block.content),
+            this.deps.config().maxToolOutputChars,
+          );
+          this.log.append('tool.end', {
+            toolUseId: block.tool_use_id,
+            isError: block.is_error === true,
+            output: text,
+            truncated,
+          });
         }
         return;
       }
@@ -316,7 +352,14 @@ class Runner {
     if (this.state !== 'waiting') this.setState('working');
   }
 
-  private finishRun(r: { isError: boolean; subtype: string; costUsd: number; durationMs: number; turns: number; errors: string[] }): void {
+  private finishRun(r: {
+    isError: boolean;
+    subtype: string;
+    costUsd: number;
+    durationMs: number;
+    turns: number;
+    errors: string[];
+  }): void {
     const runId = this.runId ?? randomUUID();
     this.runId = null;
     if (this.interruptTimer) clearTimeout(this.interruptTimer);
@@ -331,7 +374,8 @@ class Runner {
     this.deps.spend.add(r.costUsd);
     this.deps.hooks.runFinished(meta, !r.isError, r.errors);
     const cap = this.deps.config().dailySpendCapUsd;
-    if (this.deps.spend.shouldNotifyCap(cap)) this.deps.hooks.capReached(this.deps.spend.today(), cap!);
+    if (this.deps.spend.shouldNotifyCap(cap))
+      this.deps.hooks.capReached(this.deps.spend.today(), cap!);
     this.deps.hooks.sessionChanged(this.id);
   }
 
@@ -346,13 +390,17 @@ class Runner {
     if (this.flushTimer) clearTimeout(this.flushTimer);
     this.flushTimer = null;
     for (const [id, d] of this.deltas) {
-      this.log.append('assistant.delta', { messageId: id, text: d.text, parentToolUseId: d.parent });
+      this.log.append('assistant.delta', {
+        messageId: id,
+        text: d.text,
+        parentToolUseId: d.parent,
+      });
     }
     this.deltas.clear();
   }
 
   private setPreview(text: string): void {
-    this.deps.store.update(this.id, { preview: text.replace(/\s+/g, ' ').trim().slice(0, 160) });
+    this.deps.store.update(this.id, { preview: plainPreview(text) });
   }
 
   private scheduleIdle(): void {
@@ -384,7 +432,11 @@ class Runner {
     this.log.append('user.message', { text: clean, queued });
     this.deps.store.update(this.id, { preview: clean.slice(0, 160) });
     this.ensureRun();
-    this.input!.push({ type: 'user', message: { role: 'user', content: clean }, parent_tool_use_id: null });
+    this.input!.push({
+      type: 'user',
+      message: { role: 'user', content: clean },
+      parent_tool_use_id: null,
+    });
     this.deps.hooks.sessionChanged(this.id);
   }
 
@@ -401,7 +453,14 @@ class Runner {
         this.interruptTimer = null;
         if (!this.runId) return;
         this.flush();
-        this.finishRun({ isError: true, subtype: 'interrupted', costUsd: 0, durationMs: 0, turns: 0, errors: ['Interrupted by the user'] });
+        this.finishRun({
+          isError: true,
+          subtype: 'interrupted',
+          costUsd: 0,
+          durationMs: 0,
+          turns: 0,
+          errors: ['Interrupted by the user'],
+        });
         this.setState('idle');
       }, this.deps.interruptGraceMs ?? 5000);
     }
@@ -446,9 +505,27 @@ class Runner {
     }
     this.flush();
     if (this.runId) {
-      this.finishRun({ isError: true, subtype: 'stopped', costUsd: 0, durationMs: 0, turns: 0, errors: ['The agent was stopped'] });
+      this.finishRun({
+        isError: true,
+        subtype: 'stopped',
+        costUsd: 0,
+        durationMs: 0,
+        turns: 0,
+        errors: ['The agent was stopped'],
+      });
     }
     this.setState('idle');
     this.logger.info('agent released');
   }
+}
+
+/** One line of plain text for list previews: Markdown markers removed. */
+export function plainPreview(text: string): string {
+  return text
+    .replace(/```[\s\S]*?```/g, ' ')
+    .replace(/!?\[([^\]]*)\]\([^)]*\)/g, '$1')
+    .replace(/[*_~`>#]+/g, '')
+    .replace(/\s+/g, ' ')
+    .trim()
+    .slice(0, 160);
 }

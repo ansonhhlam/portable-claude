@@ -1,8 +1,7 @@
 import type { Config, Secrets } from './config.js';
 
 export type AgentEnvResult =
-  | { ok: true; env: Record<string, string | undefined> }
-  | { ok: false; error: string };
+  { ok: true; env: Record<string, string | undefined> } | { ok: false; error: string };
 
 const PROVIDER_FLAG: Record<Exclude<Config['provider'], 'anthropic'>, string> = {
   bedrock: 'CLAUDE_CODE_USE_BEDROCK',
@@ -41,6 +40,10 @@ export function buildAgentEnv(
   return { ok: true, env };
 }
 
-export function hasCredentials(config: Pick<Config, 'provider'>, secrets: Pick<Secrets, 'apiKey' | 'providerEnv'>, base: NodeJS.ProcessEnv = process.env): boolean {
+export function hasCredentials(
+  config: Pick<Config, 'provider'>,
+  secrets: Pick<Secrets, 'apiKey' | 'providerEnv'>,
+  base: NodeJS.ProcessEnv = process.env,
+): boolean {
   return buildAgentEnv(config, secrets, base).ok;
 }

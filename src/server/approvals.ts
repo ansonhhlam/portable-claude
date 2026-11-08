@@ -53,7 +53,8 @@ export class Approvals {
         resolve({ behavior: 'deny', message: 'Cancelled' });
         return;
       }
-      const onAbort = () => this.settle(approvalId, 'aborted', { behavior: 'deny', message: 'Cancelled' });
+      const onAbort = () =>
+        this.settle(approvalId, 'aborted', { behavior: 'deny', message: 'Cancelled' });
       opts.signal.addEventListener('abort', onAbort, { once: true });
       this.pending.set(approvalId, {
         sessionId,
@@ -78,7 +79,12 @@ export class Approvals {
   }
 
   /** Answer a pending request. Returns false if it is no longer pending. */
-  answer(sessionId: string, approvalId: string, decision: ApprovalDecision, note?: string): boolean {
+  answer(
+    sessionId: string,
+    approvalId: string,
+    decision: ApprovalDecision,
+    note?: string,
+  ): boolean {
     const p = this.pending.get(approvalId);
     if (!p || p.sessionId !== sessionId) return false;
     const cleanNote = note?.trim().slice(0, 2000) || undefined;
@@ -88,7 +94,9 @@ export class Approvals {
         'deny',
         {
           behavior: 'deny',
-          message: cleanNote ? `The user denied this action: ${cleanNote}` : 'The user denied this action.',
+          message: cleanNote
+            ? `The user denied this action: ${cleanNote}`
+            : 'The user denied this action.',
         },
         cleanNote,
       );
@@ -104,7 +112,12 @@ export class Approvals {
     return true;
   }
 
-  private settle(id: string, resolution: ApprovalResolution, result: PermissionResult, note?: string): void {
+  private settle(
+    id: string,
+    resolution: ApprovalResolution,
+    result: PermissionResult,
+    note?: string,
+  ): void {
     const p = this.pending.get(id);
     if (!p) return;
     this.pending.delete(id);
@@ -115,7 +128,9 @@ export class Approvals {
   }
 
   pendingFor(sessionId: string): string[] {
-    return [...this.pending.entries()].filter(([, p]) => p.sessionId === sessionId).map(([id]) => id);
+    return [...this.pending.entries()]
+      .filter(([, p]) => p.sessionId === sessionId)
+      .map(([id]) => id);
   }
 
   /** Deny everything pending for one session (e.g. on interrupt). */

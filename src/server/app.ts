@@ -1,4 +1,6 @@
 import { randomBytes } from 'node:crypto';
+import os from 'node:os';
+import path from 'node:path';
 import http, { type IncomingMessage, type ServerResponse } from 'node:http';
 import { fileURLToPath } from 'node:url';
 import { z } from 'zod';
@@ -8,6 +10,7 @@ import {
   type GlobalEvent,
   type ImportCandidate,
   type MeInfo,
+  type ProjectInfo,
   type PermissionModeName,
   type SessionDetail,
   type SessionEvent,
@@ -28,10 +31,17 @@ import {
   signCookie,
   verifyPasscode,
 } from './auth.js';
-import { configFile, secretsFile, type Config, type Secrets } from './config.js';
+import { configFile, secretsFile, type Config, type Project, type Secrets } from './config.js';
 import { buildAgentEnv } from './credentials.js';
 import type { JsonFile } from './fsutil.js';
-import { HttpError, isLoopback, readJsonBody, securityHeaders, sendJson, serveStatic } from './http.js';
+import {
+  HttpError,
+  isLoopback,
+  readJsonBody,
+  securityHeaders,
+  sendJson,
+  serveStatic,
+} from './http.js';
 import type { Logger } from './logger.js';
 import { silentLogger } from './logger.js';
 import { migrate } from './migrations.js';
@@ -54,6 +64,8 @@ export interface AppOptions {
   env?: NodeJS.ProcessEnv;
   limiter?: LoginLimiter;
   interruptGraceMs?: number;
+  /** Skip the API key check (only for the mock agent, which makes no API calls). */
+  credentialsOptional?: boolean;
 }
 
 export interface App {
@@ -91,13 +103,31 @@ const CreateSessionBody = z.object({
   cwd: z.string().max(500).optional(),
   confirmBypass: z.boolean().optional(),
 });
-const UpdateSessionBody = z.object({ title: z.string().min(1).max(200).optional(), archived: z.boolean().optional() });
+const UpdateSessionBody = z.object({
+  title: z.string().min(1).max(200).optional(),
+  archived: z.boolean().optional(),
+});
 const MessageBody = z.object({ text: z.string().min(1).max(100_000) });
-const ModeBody = z.object({ mode: z.enum(PERMISSION_MODES), confirmBypass: z.boolean().optional() });
-const ApprovalBody = z.object({ decision: z.enum(['allow', 'deny', 'always']), note: z.string().max(2000).optional() });
-const ImportBody = z.object({ projectId: z.string().min(1), sdkSessionId: z.string().min(1).max(200) });
-const LoginBody = z.object({ passcode: z.string().min(1).max(200), deviceName: z.string().max(60).optional() });
-const PairBody = z.object({ token: z.string().min(10).max(200), deviceName: z.string().max(60).optional() });
+const ModeBody = z.object({
+  mode: z.enum(PERMISSION_MODES),
+  confirmBypass: z.boolean().optional(),
+});
+const ApprovalBody = z.object({
+  decision: z.enum(['allow', 'deny', 'always']),
+  note: z.string().max(2000).optional(),
+});
+const ImportBody = z.object({
+  projectId: z.string().min(1),
+  sdkSessionId: z.string().min(1).max(200),
+});
+const LoginBody = z.object({
+  passcode: z.string().min(1).max(200),
+  deviceName: z.string().max(60).optional(),
+});
+const PairBody = z.object({
+  token: z.string().min(10).max(200),
+  deviceName: z.string().max(60).optional(),
+});
 const SubscribeBody = z.object({
   endpoint: z.string().url().max(2000),
   keys: z.object({ p256dh: z.string().max(200), auth: z.string().max(100) }),
@@ -108,7 +138,11 @@ function parse<T>(schema: z.ZodType<T>, value: unknown): T {
   const r = schema.safeParse(value);
   if (!r.success) {
     const issue = r.error.issues[0];
-    throw new HttpError(400, 'invalid_request', `Invalid request: ${issue?.path.join('.') || 'body'} ${issue?.message ?? ''}`.trim());
+    throw new HttpError(
+      400,
+      'invalid_request',
+      `Invalid request: ${issue?.path.join('.') || 'body'} ${issue?.message ?? ''}`.trim(),
+    );
   }
   return r.data;
 }
@@ -117,7 +151,8 @@ export async function createApp(opts: AppOptions): Promise<App> {
   const log = opts.log ?? silentLogger;
   const paths = dataPaths(opts.dataDir);
   const migration = migrate(paths, log);
-  if (migration.from !== migration.to) log.info('data migrated', { ...migration, backup: migration.backup ? 'created' : null });
+  if (migration.from !== migration.to)
+    log.info('data migrated', { ...migration, backup: migration.backup ? 'created' : null });
 
   const config = configFile(paths.config);
   const secrets = secretsFile(paths.secrets);
@@ -147,7 +182,11 @@ export async function createApp(opts: AppOptions): Promise<App> {
     () => {
       const s = secrets.get();
       return s.vapidPublicKey && s.vapidPrivateKey
-        ? { subject: config.get().pushSubject, publicKey: s.vapidPublicKey, privateKey: s.vapidPrivateKey }
+        ? {
+            subject: config.get().pushSubject,
+            publicKey: s.vapidPublicKey,
+            privateKey: s.vapidPrivateKey,
+          }
         : null;
     },
     opts.pushSender ?? webPushSender(),
@@ -170,15 +209,21 @@ export async function createApp(opts: AppOptions): Promise<App> {
     approvals,
     spend,
     config: () => config.get(),
-    agentEnv: () => buildAgentEnv(config.get(), secrets.get(), env),
+    agentEnv: () =>
+      opts.credentialsOptional
+        ? { ok: true, env: {} }
+        : buildAgentEnv(config.get(), secrets.get(), env),
     log,
     ...(opts.interruptGraceMs !== undefined ? { interruptGraceMs: opts.interruptGraceMs } : {}),
     hooks: {
-      sessionChanged: (id) => broadcast({ type: 'sessions.changed', ts: new Date().toISOString(), sessionId: id }),
+      sessionChanged: (id) =>
+        broadcast({ type: 'sessions.changed', ts: new Date().toISOString(), sessionId: id }),
       runFinished: (meta, ok, errors) => {
         notify({
           title: ok ? 'Run finished' : 'Run failed',
-          body: ok ? meta.title : `${meta.title}: ${errors[0] ?? 'the run ended with an error'}`.slice(0, 180),
+          body: ok
+            ? meta.title
+            : `${meta.title}: ${errors[0] ?? 'the run ended with an error'}`.slice(0, 180),
           url: `/#/s/${meta.id}`,
           tag: `run-${meta.id}`,
         });
@@ -205,10 +250,13 @@ export async function createApp(opts: AppOptions): Promise<App> {
     });
     broadcast({ type: 'sessions.changed', ts: new Date().toISOString(), sessionId });
   });
-  approvals.onResolved((sessionId) => broadcast({ type: 'sessions.changed', ts: new Date().toISOString(), sessionId }));
+  approvals.onResolved((sessionId) =>
+    broadcast({ type: 'sessions.changed', ts: new Date().toISOString(), sessionId }),
+  );
 
   // -------------------------------------------------------------- helpers
-  const projectName = (id: string) => config.get().projects.find((p) => p.id === id)?.name ?? 'Removed project';
+  const projectName = (id: string) =>
+    config.get().projects.find((p) => p.id === id)?.name ?? 'Removed project';
 
   const summary = (m: SessionMeta): SessionSummary => ({
     id: m.id,
@@ -227,7 +275,10 @@ export async function createApp(opts: AppOptions): Promise<App> {
     totals: m.totals,
     preview: m.preview,
   });
-  const detail = (m: SessionMeta): SessionDetail => ({ ...summary(m), pendingApprovalIds: approvals.pendingFor(m.id) });
+  const detail = (m: SessionMeta): SessionDetail => ({
+    ...summary(m),
+    pendingApprovalIds: approvals.pendingFor(m.id),
+  });
 
   const me = (device: { id: string; name: string }): MeInfo => {
     const cfg = config.get();
@@ -269,15 +320,25 @@ export async function createApp(opts: AppOptions): Promise<App> {
   const issueDevice = (res: ServerResponse, name: string, extra: Record<string, unknown> = {}) => {
     const secret = secrets.get().cookieSecret!;
     const d = devices.create(name);
-    sendJson(res, 200, { ok: true, deviceId: d.id, ...extra }, { 'Set-Cookie': sessionCookie(signCookie(secret, d.id, d.token)) });
+    sendJson(
+      res,
+      200,
+      { ok: true, deviceId: d.id, ...extra },
+      { 'Set-Cookie': sessionCookie(signCookie(secret, d.id, d.token)) },
+    );
   };
 
   const rateLimited = (req: IncomingMessage) => {
     const wait = limiter.retryAfter(clientKey(req));
     if (wait > 0) {
-      throw new HttpError(429, 'locked_out', `Too many failed attempts. Try again in ${Math.ceil(wait / 60_000)} minute(s).`, {
-        'Retry-After': String(Math.ceil(wait / 1000)),
-      });
+      throw new HttpError(
+        429,
+        'locked_out',
+        `Too many failed attempts. Try again in ${Math.ceil(wait / 60_000)} minute(s).`,
+        {
+          'Retry-After': String(Math.ceil(wait / 1000)),
+        },
+      );
     }
   };
 
@@ -319,7 +380,11 @@ export async function createApp(opts: AppOptions): Promise<App> {
       if (!pairing.consume(body.token)) {
         limiter.fail(key);
         log.warn('failed pairing attempt');
-        throw new HttpError(401, 'bad_pairing_token', 'This pairing code is invalid, already used, or expired. Run `longcord pair` again.');
+        throw new HttpError(
+          401,
+          'bad_pairing_token',
+          'This pairing code is invalid, already used, or expired. Run `longcord pair` again.',
+        );
       }
       limiter.succeed(key);
       log.info('device paired');
@@ -343,20 +408,27 @@ export async function createApp(opts: AppOptions): Promise<App> {
     const body: StateResponse = {
       me: me(device!),
       sessions: store.list().map(summary),
-      projects: cfg.projects,
+      projects: cfg.projects.map((p) => displayProject(p)),
       spend: spend.info(cfg.dailySpendCapUsd),
     };
     sendJson(res, 200, body);
   });
 
-  route('GET', '/api/projects', ({ res }) => sendJson(res, 200, config.get().projects));
+  route('GET', '/api/projects', ({ res }) =>
+    sendJson(
+      res,
+      200,
+      config.get().projects.map((p) => displayProject(p)),
+    ),
+  );
   route('GET', '/api/sessions', ({ res }) => sendJson(res, 200, store.list().map(summary)));
 
   route('POST', '/api/sessions', async ({ req, res }) => {
     const body = parse(CreateSessionBody, await readJsonBody(req));
     const cfg = config.get();
     const project = cfg.projects.find((p) => p.id === body.projectId);
-    if (!project) throw new HttpError(400, 'unknown_project', 'That project is not in the allowed list');
+    if (!project)
+      throw new HttpError(400, 'unknown_project', 'That project is not in the allowed list');
     checkBypass(body.mode, body.confirmBypass);
     if (body.model && cfg.models.length && !cfg.models.includes(body.model)) {
       throw new HttpError(400, 'unknown_model', 'That model is not in the configured list');
@@ -369,8 +441,16 @@ export async function createApp(opts: AppOptions): Promise<App> {
       throw err;
     }
     const title = body.title?.trim() || body.prompt.trim().replace(/\s+/g, ' ').slice(0, 60);
-    const meta = store.create({ title, projectId: project.id, cwd, mode: body.mode, model: body.model ?? null });
-    store.events(meta.id).append('session.created', { title, projectId: project.id, mode: body.mode });
+    const meta = store.create({
+      title,
+      projectId: project.id,
+      cwd,
+      mode: body.mode,
+      model: body.model ?? null,
+    });
+    store
+      .events(meta.id)
+      .append('session.created', { title, projectId: project.id, mode: body.mode });
     try {
       manager.send(meta.id, body.prompt);
     } catch (err) {
@@ -381,7 +461,9 @@ export async function createApp(opts: AppOptions): Promise<App> {
     sendJson(res, 201, detail(store.get(meta.id)!));
   });
 
-  route('GET', '/api/sessions/:id', ({ res, params }) => sendJson(res, 200, detail(getSession(params[0]))));
+  route('GET', '/api/sessions/:id', ({ res, params }) =>
+    sendJson(res, 200, detail(getSession(params[0]))),
+  );
 
   route('PATCH', '/api/sessions/:id', async ({ req, res, params }) => {
     const meta = getSession(params[0]);
@@ -432,7 +514,8 @@ export async function createApp(opts: AppOptions): Promise<App> {
     const meta = getSession(params[0]);
     const body = parse(ApprovalBody, await readJsonBody(req));
     const ok = approvals.answer(meta.id, params[1]!, body.decision, body.note);
-    if (!ok) throw new HttpError(409, 'expired', 'This request is no longer waiting for an answer.');
+    if (!ok)
+      throw new HttpError(409, 'expired', 'This request is no longer waiting for an answer.');
     sendJson(res, 200, { ok: true });
   });
 
@@ -441,7 +524,10 @@ export async function createApp(opts: AppOptions): Promise<App> {
     const log = store.events(meta.id);
     const header = Number(req.headers['last-event-id']);
     const query = Number(url.searchParams.get('after'));
-    const after = Math.max(Number.isFinite(header) ? header : 0, Number.isFinite(query) ? query : 0);
+    const after = Math.max(
+      Number.isFinite(header) ? header : 0,
+      Number.isFinite(query) ? query : 0,
+    );
     res.writeHead(200, {
       'Content-Type': 'text/event-stream; charset=utf-8',
       'Cache-Control': 'no-store, no-transform',
@@ -476,7 +562,9 @@ export async function createApp(opts: AppOptions): Promise<App> {
       'X-Accel-Buffering': 'no',
     });
     res.write('retry: 2000\n\n');
-    res.write(`data: ${JSON.stringify({ type: 'hello', ts: new Date().toISOString() } satisfies GlobalEvent)}\n\n`);
+    res.write(
+      `data: ${JSON.stringify({ type: 'hello', ts: new Date().toISOString() } satisfies GlobalEvent)}\n\n`,
+    );
     globalClients.add(res);
     const ping = setInterval(() => res.write(': ping\n\n'), 20_000);
     req.on('close', () => {
@@ -531,12 +619,17 @@ export async function createApp(opts: AppOptions): Promise<App> {
       log.append('history.message', { role: m.type, text: text.slice(0, 50_000), tools });
       if (text) preview = text;
     }
-    log.append('notice', { level: 'info', message: 'History imported read-only. Send a message to continue this session here.' });
+    log.append('notice', {
+      level: 'info',
+      message: 'History imported read-only. Send a message to continue this session here.',
+    });
     store.update(meta.id, { preview: preview.replace(/\s+/g, ' ').slice(0, 160) });
     sendJson(res, 201, detail(store.get(meta.id)!));
   });
 
-  route('GET', '/api/devices', ({ res, device }) => sendJson(res, 200, devices.list(device!.id) satisfies DeviceInfo[]));
+  route('GET', '/api/devices', ({ res, device }) =>
+    sendJson(res, 200, devices.list(device!.id) satisfies DeviceInfo[]),
+  );
 
   route('DELETE', '/api/devices/:id', ({ res, params, device }) => {
     const name = devices.revoke(params[0]!);
@@ -547,7 +640,9 @@ export async function createApp(opts: AppOptions): Promise<App> {
     sendJson(res, 200, { ok: true }, self ? { 'Set-Cookie': clearedCookie() } : {});
   });
 
-  route('GET', '/api/spend', ({ res }) => sendJson(res, 200, spend.info(config.get().dailySpendCapUsd)));
+  route('GET', '/api/spend', ({ res }) =>
+    sendJson(res, 200, spend.info(config.get().dailySpendCapUsd)),
+  );
 
   route('GET', '/api/push/key', ({ res }) => sendJson(res, 200, { publicKey: push.publicKey() }));
 
@@ -569,11 +664,20 @@ export async function createApp(opts: AppOptions): Promise<App> {
 
   route('POST', '/api/push/test', async ({ res, device }) => {
     const r = await push.notify(
-      { title: 'Test notification', body: 'Notifications from longcord are working.', url: '/#/settings', tag: 'test' },
+      {
+        title: 'Test notification',
+        body: 'Notifications from longcord are working.',
+        url: '/#/settings',
+        tag: 'test',
+      },
       device!.id,
     );
     if (r.sent === 0) {
-      throw new HttpError(409, 'push_not_delivered', 'No notification was delivered. Turn notifications on for this device first.');
+      throw new HttpError(
+        409,
+        'push_not_delivered',
+        'No notification was delivered. Turn notifications on for this device first.',
+      );
     }
     sendJson(res, 200, r);
   });
@@ -585,12 +689,17 @@ export async function createApp(opts: AppOptions): Promise<App> {
   const allowedOrigin = (req: IncomingMessage, origin: string): boolean => {
     const cfg = config.get();
     const port = (server.address() as { port?: number } | null)?.port ?? cfg.port;
-    const allowed = new Set([`http://127.0.0.1:${port}`, `http://localhost:${port}`, `http://[::1]:${port}`]);
+    const allowed = new Set([
+      `http://127.0.0.1:${port}`,
+      `http://localhost:${port}`,
+      `http://[::1]:${port}`,
+    ]);
     if (cfg.publicUrl) allowed.add(new URL(cfg.publicUrl).origin);
     const host = req.headers.host;
     if (host) allowed.add(`https://${host}`);
     const fwdHost = req.headers['x-forwarded-host'];
-    if (typeof fwdHost === 'string' && isLoopback(req.socket.remoteAddress)) allowed.add(`https://${fwdHost}`);
+    if (typeof fwdHost === 'string' && isLoopback(req.socket.remoteAddress))
+      allowed.add(`https://${fwdHost}`);
     return allowed.has(origin);
   };
 
@@ -612,14 +721,19 @@ export async function createApp(opts: AppOptions): Promise<App> {
     try {
       const isApi = url.pathname.startsWith('/api/') || url.pathname === '/healthz';
       if (!isApi) {
-        if (method !== 'GET' && method !== 'HEAD') throw new HttpError(405, 'method_not_allowed', 'Method not allowed');
+        if (method !== 'GET' && method !== 'HEAD')
+          throw new HttpError(405, 'method_not_allowed', 'Method not allowed');
         serveStatic(webDir, url.pathname, req, res);
         return;
       }
       const r = routes.find((x) => x.method === method && x.re.test(url.pathname));
       if (!r) {
         const any = routes.some((x) => x.re.test(url.pathname));
-        throw new HttpError(any ? 405 : 404, any ? 'method_not_allowed' : 'not_found', any ? 'Method not allowed' : 'Not found');
+        throw new HttpError(
+          any ? 405 : 404,
+          any ? 'method_not_allowed' : 'not_found',
+          any ? 'Method not allowed' : 'Not found',
+        );
       }
       if (method !== 'GET' && method !== 'HEAD') {
         const origin = req.headers.origin;
@@ -705,4 +819,14 @@ export function flattenHistory(message: unknown): { text: string; tools: string[
     }
   }
   return { text: texts.join('\n\n'), tools };
+}
+
+/**
+ * Projects as shown to devices: the home folder is shortened to `~` so phones,
+ * screenshots and screen shares do not reveal the account name.
+ */
+export function displayProject(p: Project, home: string = os.homedir()): ProjectInfo {
+  const rel = path.relative(home, p.path);
+  const inside = rel && !rel.startsWith('..') && !path.isAbsolute(rel);
+  return { id: p.id, name: p.name, path: inside ? `~${path.sep}${rel}` : p.path };
 }

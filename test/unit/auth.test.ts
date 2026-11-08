@@ -92,7 +92,13 @@ describe('HTTP auth', () => {
     t = await startTestApp();
     expect((await fetch(`${t.base}/healthz`)).status).toBe(200);
     expect(await (await fetch(`${t.base}/healthz`)).json()).toEqual({ ok: true });
-    for (const p of ['/api/state', '/api/sessions', '/api/devices', '/api/me', '/api/sessions/x/events']) {
+    for (const p of [
+      '/api/state',
+      '/api/sessions',
+      '/api/devices',
+      '/api/me',
+      '/api/sessions/x/events',
+    ]) {
       expect((await fetch(t.base + p)).status).toBe(401);
     }
   });
@@ -108,7 +114,9 @@ describe('HTTP auth', () => {
     expect(cookie).toMatch(/SameSite=Strict/);
     expect((await t.client.json('GET', '/api/state')).status).toBe(200);
     const other = new Client(t.base);
-    expect((await other.req('POST', '/api/auth/pair', { token, deviceName: 'x' })).status).toBe(401);
+    expect((await other.req('POST', '/api/auth/pair', { token, deviceName: 'x' })).status).toBe(
+      401,
+    );
   });
 
   it('signs in with the passcode and locks out after failures', async () => {
@@ -118,7 +126,14 @@ describe('HTTP auth', () => {
     });
     const c = new Client(t.base);
     expect((await c.req('POST', '/api/auth/login', { passcode: 'nope' })).status).toBe(401);
-    expect((await c.req('POST', '/api/auth/login', { passcode: 'open sesame 123', deviceName: 'Tablet' })).status).toBe(200);
+    expect(
+      (
+        await c.req('POST', '/api/auth/login', {
+          passcode: 'open sesame 123',
+          deviceName: 'Tablet',
+        })
+      ).status,
+    ).toBe(200);
     expect((await c.json('GET', '/api/me')).body).toMatchObject({ deviceName: 'Tablet' });
     const d = new Client(t.base);
     for (let i = 0; i < 3; i++) await d.req('POST', '/api/auth/login', { passcode: 'wrong' });
@@ -129,7 +144,9 @@ describe('HTTP auth', () => {
 
   it('does not accept a passcode when none is set', async () => {
     t = await startTestApp();
-    expect((await t.client.req('POST', '/api/auth/login', { passcode: 'anything' })).status).toBe(401);
+    expect((await t.client.req('POST', '/api/auth/login', { passcode: 'anything' })).status).toBe(
+      401,
+    );
   });
 
   it('revokes devices from the app and from the store (CLI path)', async () => {
@@ -137,7 +154,9 @@ describe('HTTP auth', () => {
     await pair(t, t.client, 'Phone A');
     const b = new Client(t.base);
     await pair(t, b, 'Phone B');
-    const list = (await t.client.json<{ id: string; name: string; current: boolean }[]>('GET', '/api/devices')).body;
+    const list = (
+      await t.client.json<{ id: string; name: string; current: boolean }[]>('GET', '/api/devices')
+    ).body;
     expect(list.map((d) => d.name).sort()).toEqual(['Phone A', 'Phone B']);
     const bId = list.find((d) => d.name === 'Phone B')!.id;
     expect((await t.client.json('DELETE', `/api/devices/${bId}`)).status).toBe(200);
@@ -161,7 +180,11 @@ describe('HTTP auth', () => {
     await pair(t);
     const evil = new Client(t.base, 'https://evil.example.com');
     evil.cookie = t.client.cookie;
-    const r = await evil.req('POST', '/api/sessions', { projectId: 'demo', prompt: 'x', mode: 'default' });
+    const r = await evil.req('POST', '/api/sessions', {
+      projectId: 'demo',
+      prompt: 'x',
+      mode: 'default',
+    });
     expect(r.status).toBe(403);
     // A missing Origin header is also refused.
     const res = await fetch(`${t.base}/api/sessions`, {

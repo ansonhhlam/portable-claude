@@ -21,11 +21,19 @@ export const ConfigSchema = z.object({
   defaultModel: z.string().min(1).nullable().default(null),
   defaultMode: z.enum(PERMISSION_MODES).default('default'),
   dailySpendCapUsd: z.number().positive().nullable().default(null),
-  idleTimeoutMinutes: z.number().positive().max(24 * 60).default(15),
+  idleTimeoutMinutes: z
+    .number()
+    .positive()
+    .max(24 * 60)
+    .default(15),
   maxToolOutputChars: z.number().int().min(200).max(100_000).default(4000),
   logLevel: z.enum(['debug', 'info', 'warn', 'error']).default('info'),
   logContent: z.boolean().default(false),
-  logMaxBytes: z.number().int().min(64 * 1024).default(5 * 1024 * 1024),
+  logMaxBytes: z
+    .number()
+    .int()
+    .min(64 * 1024)
+    .default(5 * 1024 * 1024),
   logMaxFiles: z.number().int().min(1).max(50).default(5),
   dailyRestart: z
     .string()

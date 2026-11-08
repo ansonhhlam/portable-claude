@@ -9,7 +9,8 @@ const SECRET_PATTERNS: RegExp[] = [
   /\bBearer\s+[A-Za-z0-9._~+/-]+=*/gi,
 ];
 
-const SECRET_KEYS = /(api[_-]?key|token|secret|passcode|password|cookie|authorization|p256dh|private)/i;
+const SECRET_KEYS =
+  /(api[_-]?key|token|secret|passcode|password|cookie|authorization|p256dh|private)/i;
 
 export function redactSecrets(text: string): string {
   let out = text;
@@ -53,7 +54,11 @@ function escapeRe(s: string): string {
 export function redactIdentity(text: string, ids: IdentityTerms): string {
   let out = redactSecrets(text);
   if (ids.home && ids.home.length > 3) {
-    const variants = new Set([ids.home, ids.home.replace(/\\/g, '/'), ids.home.replace(/\//g, '\\')]);
+    const variants = new Set([
+      ids.home,
+      ids.home.replace(/\\/g, '/'),
+      ids.home.replace(/\//g, '\\'),
+    ]);
     for (const v of variants) out = out.replace(new RegExp(escapeRe(v), 'gi'), '~');
   }
   out = out.replace(/\b[a-z0-9-]+(?:\.[a-z0-9-]+)*\.ts\.net\b/gi, '<machine>.<tailnet>.ts.net');
@@ -66,7 +71,10 @@ export function redactIdentity(text: string, ids: IdentityTerms): string {
     [ids.hostname, '<host>'],
   ] as const) {
     if (term && term.length >= 3) {
-      out = out.replace(new RegExp(`(?<![A-Za-z0-9])${escapeRe(term)}(?![A-Za-z0-9])`, 'gi'), label);
+      out = out.replace(
+        new RegExp(`(?<![A-Za-z0-9])${escapeRe(term)}(?![A-Za-z0-9])`, 'gi'),
+        label,
+      );
     }
   }
   return out;
