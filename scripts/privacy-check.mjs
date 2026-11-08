@@ -161,7 +161,7 @@ function ipv6Allowed(ip) {
 }
 
 const EMAIL_OK =
-  /@(?:[a-z0-9-]+\.)*(?:example\.(?:com|org|net)|users\.noreply\.github\.com|noreply\.github\.com)$|^git@github\.com$/i;
+  /@(?:[a-z0-9-]+\.)*(?:example\.(?:com|org|net)|users\.noreply\.github\.com|noreply\.github\.com)$|^git@github\.com$|^support@github\.com$/i;
 
 /**
  * @typedef {{ id: string, test: (line: string, file: string) => string | null }} Rule
