@@ -5,11 +5,11 @@ computer, so we take security reports seriously.
 
 ## Supported versions
 
-| Version                  | Supported              |
-| ------------------------ | ---------------------- |
-| Latest `1.x` release     | Yes                    |
-| Older `1.x` releases     | Upgrade to the latest  |
-| `0.x` and pre-releases   | No                     |
+| Version                | Supported             |
+| ---------------------- | --------------------- |
+| Latest `1.x` release   | Yes                   |
+| Older `1.x` releases   | Upgrade to the latest |
+| `0.x` and pre-releases | No                    |
 
 Security fixes are released as patch versions of the latest minor release.
 

@@ -42,18 +42,18 @@ environment variables) and run `longcord start`.
 
 ## Checks and tests
 
-| Command                  | What it does                                                    |
-| ------------------------ | --------------------------------------------------------------- |
-| `npm run lint`           | ESLint and Prettier (`--check`)                                 |
-| `npm run typecheck`      | TypeScript type checking                                        |
-| `npm run build`          | Builds the server and CLI to `dist/` and the web app to `dist/web` |
-| `npm test`               | Unit tests (Vitest)                                             |
-| `npm run test:coverage`  | Unit tests with a coverage report in `coverage/`                |
-| `npm run test:e2e`       | End-to-end tests (Playwright) against the mock SDK              |
-| `npm run docs:check`     | Verifies CLI `--help` output matches `docs/reference/cli.md`    |
-| `npm run licenses`       | Fails on GPL, AGPL or unknown dependency licenses               |
-| `npm run pack:check`     | Validates what `npm pack` would publish                         |
-| `npm run privacy-check`  | Scans tracked files for secrets and personal data               |
+| Command                 | What it does                                                       |
+| ----------------------- | ------------------------------------------------------------------ |
+| `npm run lint`          | ESLint and Prettier (`--check`)                                    |
+| `npm run typecheck`     | TypeScript type checking                                           |
+| `npm run build`         | Builds the server and CLI to `dist/` and the web app to `dist/web` |
+| `npm test`              | Unit tests (Vitest)                                                |
+| `npm run test:coverage` | Unit tests with a coverage report in `coverage/`                   |
+| `npm run test:e2e`      | End-to-end tests (Playwright) against the mock SDK                 |
+| `npm run docs:check`    | Verifies CLI `--help` output matches `docs/reference/cli.md`       |
+| `npm run licenses`      | Fails on GPL, AGPL or unknown dependency licenses                  |
+| `npm run pack:check`    | Validates what `npm pack` would publish                            |
+| `npm run privacy-check` | Scans tracked files for secrets and personal data                  |
 
 Before the first end-to-end run, install the browsers once:
 
