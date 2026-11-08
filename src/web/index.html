@@ -1,0 +1,35 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+    <meta name="color-scheme" content="light dark" />
+    <meta name="theme-color" media="(prefers-color-scheme: light)" content="#f5f7f8" />
+    <meta name="theme-color" media="(prefers-color-scheme: dark)" content="#0d1214" />
+    <meta
+      name="description"
+      content="Run and approve coding sessions on your own computer from your phone."
+    />
+    <meta name="referrer" content="no-referrer" />
+    <meta name="mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="default" />
+    <meta name="apple-mobile-web-app-title" content="longcord" />
+    <link rel="manifest" href="/manifest.webmanifest" />
+    <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
+    <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
+    <title>longcord</title>
+    <script type="module" src="./main.ts"></script>
+  </head>
+  <body>
+    <a class="skip-link" href="#main">Skip to content</a>
+    <div id="view" class="view">
+      <div class="splash" role="status">
+        <span class="splash-text">Connecting…</span>
+      </div>
+    </div>
+    <div id="toasts" class="toasts" aria-live="assertive"></div>
+    <div id="announcer" class="sr-only" aria-live="polite" aria-atomic="true"></div>
+    <noscript>longcord needs JavaScript enabled.</noscript>
+  </body>
+</html>
